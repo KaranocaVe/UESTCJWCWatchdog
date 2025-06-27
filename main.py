@@ -5,7 +5,8 @@ import winsound
 from check import check_new_grades
 
 TIMEOUT = 20
-INTERVAL = 1200
+INTERVAL = 3600  # 每60分钟检查一次
+
 
 def run_check(return_dict):
     try:
@@ -13,6 +14,7 @@ def run_check(return_dict):
         return_dict['result'] = result
     except Exception as e:
         return_dict['error'] = str(e)
+
 
 def notify_user(new_courses):
     # 播放提示音
@@ -24,6 +26,7 @@ def notify_user(new_courses):
         f"{course['课程名称']}：{course.get('最终', '无成绩')}" for course in new_courses
     )
     ctypes.windll.user32.MessageBoxW(0, msg, "成绩更新提醒", 0x40)  # 0x40 是信息图标
+
 
 def main_loop():
     while True:
@@ -53,6 +56,7 @@ def main_loop():
                 print("查询出错：", return_dict['error'])
 
         time.sleep(INTERVAL)
+
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
