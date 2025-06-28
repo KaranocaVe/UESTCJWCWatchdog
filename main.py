@@ -1,16 +1,17 @@
-import multiprocessing
+import threading
 import time
 import ctypes
 import winsound
-from check import check_new_grades
+from check import *
 
 TIMEOUT = 20
 INTERVAL = 3600  # 每60分钟检查一次
+DEVFLAG = True
 
 
-def run_check(return_dict):
+def run_check(driver,return_dict,semister="463"):
     try:
-        result = check_new_grades()
+        result = check_new_grades(driver,semister)
         return_dict['result'] = result
     except Exception as e:
         return_dict['error'] = str(e)
@@ -29,12 +30,14 @@ def notify_user(new_courses):
 
 
 def main_loop():
+    print("创建浏览器并登录")
+    driver = create_driver_and_login(dev=DEVFLAG)
+    semister_id = determine_semister_id(driver)
     while True:
         print(f"\n开始一次成绩检查：{time.strftime('%Y-%m-%d %H:%M:%S')}")
-        manager = multiprocessing.Manager()
-        return_dict = manager.dict()
+        return_dict = {}
 
-        p = multiprocessing.Process(target=run_check, args=(return_dict,))
+        p = threading.Thread(target=run_check,args=(driver,return_dict,semister_id,))
         p.start()
         p.join(timeout=TIMEOUT)
 
@@ -45,7 +48,7 @@ def main_loop():
         else:
             if 'result' in return_dict:
                 new_courses = return_dict['result']
-                if new_courses:
+                if new_courses and {} not in new_courses:
                     print("发现新增课程：")
                     for course in new_courses:
                         print(course)
@@ -54,10 +57,15 @@ def main_loop():
                     print("没有新增课程")
             elif 'error' in return_dict:
                 print("查询出错：", return_dict['error'])
+                print("重新创建浏览器并登录")
+                driver.quit()
+                driver = create_driver_and_login()
 
         time.sleep(INTERVAL)
 
 
 if __name__ == "__main__":
-    multiprocessing.freeze_support()
+    if DEVFLAG:
+        TIMEOUT = 2000
+        INTERVAL = 10
     main_loop()

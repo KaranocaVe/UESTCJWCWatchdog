@@ -5,10 +5,11 @@ import undetected_chromedriver as uc
 from selenium.webdriver import ActionChains
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import WebDriverWait,Select
 from selenium.webdriver.support import expected_conditions as EC
 
 import sys
+
 
 def get_real_path(relative_path):
     """兼容 PyInstaller 打包后的资源路径"""
@@ -21,19 +22,19 @@ def get_real_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
-
-def check_new_grades(account_file='account.txt',
-                     chrome_path="chrome-win64/chrome.exe",
-                     driver_path="chromedriver-win64/chromedriver.exe",
-                     headless=True):
+def create_driver_and_login(account_file='account.txt',
+                    chrome_path="chrome-win64/chrome.exe",
+                    driver_path="chromedriver-win64\\chromedriver.exe",
+                    headless=True,
+                    dev=False):
     """
-    检查是否有新增成绩
+    创建浏览器并登录
     Returns:
-        added_courses (list[dict]): 新增课程信息列表
+        driver : 新建浏览器对象
     """
     # === 配置浏览器 ===
     options = Options()
-    if headless:
+    if headless and not(dev):
         options.add_argument('--headless')
     options.add_argument('--disable-gpu')
     options.add_argument('--no-sandbox')
@@ -44,17 +45,24 @@ def check_new_grades(account_file='account.txt',
     chrome_path = get_real_path(chrome_path)
     driver_path = get_real_path(driver_path)
 
-    driver = uc.Chrome(
-        options=options,
-        use_subprocess=True,
-        browser_executable_path=chrome_path,
-        driver_executable_path=driver_path,
-        version_main=138
-    )
+    if dev:
+        driver = uc.Chrome(
+            options=options,
+            use_subprocess=True,
+            version_main=138
+        )
+    else:
+        driver = uc.Chrome(
+            options=options,
+            use_subprocess=True,
+            browser_executable_path=chrome_path,
+            driver_executable_path=driver_path,
+            version_main=138
+        )
 
 
     # === 登录 ===
-    driver.get('https://eams.uestc.edu.cn/eams/teach/grade/course/person!search.action?semesterId=463&projectType=')
+    driver.get('https://eams.uestc.edu.cn/eams/')
     account_file = get_real_path(account_file)
     with open(account_file, 'r', encoding='utf-8') as f:
         stdnum = f.readline().strip()
@@ -74,10 +82,28 @@ def check_new_grades(account_file='account.txt',
     login_button.click()
 
     time.sleep(1)
-    if "当前用户存在重复登录的情况" in driver.page_source:
-        driver.get('https://eams.uestc.edu.cn/eams/teach/grade/course/person!search.action')
+    driver.refresh()
+    return driver
 
-    driver.get('https://eams.uestc.edu.cn/eams/teach/grade/course/person!search.action?semesterId=463&projectType=')
+def determine_semister_id(driver:uc.Chrome):
+    """
+    确定学期编号
+    Returns:
+        id : 学期编号
+    """
+    driver.get("https://eams.uestc.edu.cn/eams/publicSearch.action")
+    semister_selector= WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "semester.id")))
+    semister_selector=Select(semister_selector)
+    return semister_selector.options[1].get_attribute("value") 
+
+
+def check_new_grades(driver,semister="463"):
+    """
+    检查是否有新增成绩
+    Returns:
+        added_courses (list[dict]): 新增课程信息列表
+    """
+    driver.get('https://eams.uestc.edu.cn/eams/teach/grade/course/person!search.action?semesterId=%s&projectType='%str(semister))
     time.sleep(0.5)
 
     # === 获取成绩表 ===
@@ -100,7 +126,5 @@ def check_new_grades(account_file='account.txt',
     # 保存新成绩
     with open("grade.json", "w", encoding="utf-8") as f:
         json.dump(grade_json, f, ensure_ascii=False, indent=2)
-
-    driver.quit()
 
     return added_courses
