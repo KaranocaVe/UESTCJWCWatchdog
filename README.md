@@ -7,7 +7,7 @@
 - `KnowYourGrades` 文件夹：GUI 程序源代码，基于 AvaloniaUI 开发。
 - `Spider` 文件夹：用于从教务处爬取信息的 Python 源码。
 
-![预览](preview-1.png)
+![预览](preview.png)
 
 ## GUI 使用说明
 
