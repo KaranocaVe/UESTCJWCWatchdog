@@ -1,0 +1,17 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="KnowYourGrades.App"
+             xmlns:local="using:KnowYourGrades"
+             xmlns:sukiUi="clr-namespace:SukiUI;assembly=SukiUI"
+             RequestedThemeVariant="Default">
+             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+    </Application.DataTemplates>
+  
+    <Application.Styles>
+        <sukiUi:SukiTheme ThemeColor="Blue"  />
+        <StyleInclude Source="avares://IconPacks.Avalonia/Icons.axaml" />
+    </Application.Styles>
+</Application>

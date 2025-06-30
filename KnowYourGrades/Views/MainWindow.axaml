@@ -1,0 +1,191 @@
+<sukiUi:SukiWindow xmlns="https://github.com/avaloniaui"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                   xmlns:vm="using:KnowYourGrades.ViewModels"
+                   xmlns:sukiUi="clr-namespace:SukiUI.Controls;assembly=SukiUI"
+                   xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                   xmlns:iconPacks="https://github.com/MahApps/IconPacks.Avalonia"
+                   xmlns:objectModel="clr-namespace:System.Collections.ObjectModel;assembly=System.ObjectModel"
+                   xmlns:views="clr-namespace:KnowYourGrades.Views"
+                   mc:Ignorable="d" d:DesignWidth="1320" d:DesignHeight="600"
+                   x:Class="KnowYourGrades.Views.MainWindow"
+                   x:DataType="vm:MainWindowViewModel"
+                   Icon="/Assets/uestc.ico"
+                   Title="KnowYourGrades"
+                   Width="1320"
+                   Height="600">
+
+    <Design.DataContext>
+        <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <vm:MainWindowViewModel />
+    </Design.DataContext>
+
+    <sukiUi:SukiWindow.Hosts>
+        <sukiUi:GlassCard Margin="40" IsOpaque="True" IsVisible="{Binding IsLoading}">
+            <sukiUi:BusyArea BusyText="更新中..." IsBusy="{Binding IsLoading}">
+            </sukiUi:BusyArea>
+        </sukiUi:GlassCard>
+        <sukiUi:SukiToastHost Manager="{Binding ToastManager}" />
+    </sukiUi:SukiWindow.Hosts>
+
+    <sukiUi:SukiWindow.Styles>
+        <Styles>
+            <Style Selector="TextBlock">
+                <Setter Property="FontSize" Value="16"></Setter>
+                <Setter Property="FontFamily" Value="Georgia"></Setter>
+                <Setter Property="TextWrapping" Value="Wrap"></Setter>
+            </Style>
+        </Styles>
+    </sukiUi:SukiWindow.Styles>
+
+    <sukiUi:SukiSideMenu IsToggleButtonVisible="False">
+        <sukiUi:SukiSideMenu.HeaderContent>
+            <Grid>
+                <Image Source="avares://KnowYourGrades/Assets/jwclogo.png"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Margin="10,0,10,32" />
+            </Grid>
+        </sukiUi:SukiSideMenu.HeaderContent>
+        <sukiUi:SukiSideMenu.FooterContent>
+            <StackPanel >
+                <TextBlock Text="V2.0"  Foreground="Gray"  HorizontalAlignment="Center"></TextBlock>
+                <iconPacks:PackIconBoxIcons Kind="LogosGithub" HorizontalAlignment="Center"  Margin="10"/>
+                <TextBlock Text="KaranocaVe"  Foreground="Gray"  HorizontalAlignment="Center"></TextBlock>
+            </StackPanel>
+        </sukiUi:SukiSideMenu.FooterContent>
+        <sukiUi:SukiSideMenu.Items>
+            <sukiUi:SukiSideMenuItem Header="总评成绩" Classes="Compact">
+                <sukiUi:SukiSideMenuItem.Icon>
+                    <iconPacks:PackIconMaterialDesign Kind="Grading" />
+                </sukiUi:SukiSideMenuItem.Icon>
+                <sukiUi:SukiSideMenuItem.PageContent>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"></RowDefinition>
+                            <RowDefinition Height="Auto"></RowDefinition>
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal" Margin="10">
+                            <ComboBox PlaceholderText="选择学年"
+                                      SelectedValue="{Binding SemesterYear}"
+                                      ItemsSource="{Binding availableSemesterYear}">
+                                <!-- <ComboBox.Items> -->
+                                <!--     <TextBlock Text="2022-2023" /> -->
+                                <!--     <TextBlock Text="2023-2024" /> -->
+                                <!--     <TextBlock Text="2024-2025" /> -->
+                                <!--     <TextBlock Text="2025-2026" /> -->
+                                <!--     <TextBlock Text="2026-2027" /> -->
+                                <!--     <TextBlock Text="2027-2028" /> -->
+                                <!--     <TextBlock Text="2028-2029" /> -->
+                                <!-- </ComboBox.Items> -->
+                            </ComboBox>
+                            <ComboBox PlaceholderText="选择学期"
+                                      SelectedItem="{Binding SemesterNumber}"
+                                      ItemsSource="{Binding availableSemesterNumber}"
+                                      Margin="10,0,10,0">
+                            </ComboBox>
+                            <Button Command="{Binding ManuallyLoadCoursesFromPythonAsync}">
+                                <iconPacks:PackIconMaterialDesign Kind="Cached" />
+                            </Button>
+                            <TextBlock Text="{Binding LastUpdateTime}" Margin="10,13,10,0" Foreground="Gray" />
+
+                        </StackPanel>
+
+                        <DataGrid Grid.Row="1" AutoGenerateColumns="False"
+                                  ItemsSource="{Binding Courses}"
+                                  Margin="20" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="课程代码" Binding="{Binding CourseCode}" Width="120" />
+                                <DataGridTextColumn Header="课程序号" Binding="{Binding CourseId}" Width="120" />
+                                <DataGridTextColumn Header="课程名称" Binding="{Binding CourseName}" Width="220" />
+                                <DataGridTextColumn Header="课程类别" Binding="{Binding CourseType}" Width="120" />
+                                <DataGridTextColumn Header="学分" Binding="{Binding Credit}" Width="80" />
+                                <DataGridTextColumn Header="期末成绩" Binding="{Binding FinalExamScore}" Width="80" />
+                                <DataGridTextColumn Header="总评成绩" Binding="{Binding OverallScore}" Width="80" />
+                                <DataGridTextColumn Header="补考总评" Binding="{Binding MakeupScore}" Width="80" />
+                                <DataGridTextColumn Header="最终" Binding="{Binding FinalScore}" Width="80" />
+                                <DataGridTextColumn Header="绩点" Binding="{Binding GPA}" Width="80" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </sukiUi:SukiSideMenuItem.PageContent>
+            </sukiUi:SukiSideMenuItem>
+            <!-- <sukiUi:SukiSideMenuItem Header="平时成绩" Classes="Compact"> -->
+            <!--     <sukiUi:SukiSideMenuItem.Icon> -->
+            <!--         <iconPacks:PackIconMaterialDesign Kind="CoPresent"/> -->
+            <!--     </sukiUi:SukiSideMenuItem.Icon> -->
+            <!--     <sukiUi:SukiSideMenuItem.PageContent> -->
+            <!--         <TextBlock Text="点击左侧菜单查看课程详情" HorizontalAlignment="Center" VerticalAlignment="Center"/> -->
+            <!--     </sukiUi:SukiSideMenuItem.PageContent> -->
+            <!-- </sukiUi:SukiSideMenuItem> -->
+            <!-- <sukiUi:SukiSideMenuItem Header="我的课程" Classes="Compact"> -->
+            <!--     <sukiUi:SukiSideMenuItem.Icon> -->
+            <!--         <iconPacks:PackIconMaterialDesign Kind="Class"/> -->
+            <!--     </sukiUi:SukiSideMenuItem.Icon> -->
+            <!--     <sukiUi:SukiSideMenuItem.PageContent> -->
+            <!--         <TextBlock Text="点击左侧菜单查看课程详情" HorizontalAlignment="Center" VerticalAlignment="Center"/> -->
+            <!--     </sukiUi:SukiSideMenuItem.PageContent> -->
+            <!-- </sukiUi:SukiSideMenuItem> -->
+            <sukiUi:SukiSideMenuItem Header="设置" Classes="Compact">
+                <sukiUi:SukiSideMenuItem.Icon>
+                    <iconPacks:PackIconMaterialDesign Kind="Settings" />
+                </sukiUi:SukiSideMenuItem.Icon>
+                <sukiUi:SukiSideMenuItem.PageContent>
+                    <sukiUi:SettingsLayout>
+                        <sukiUi:SettingsLayout.Items>
+                            <objectModel:ObservableCollection x:TypeArguments="sukiUi:SettingsLayoutItem">
+                                <sukiUi:SettingsLayoutItem Header="统一身份认证">
+                                    <sukiUi:SettingsLayoutItem.Content>
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"></RowDefinition>
+                                                <RowDefinition Height="Auto"></RowDefinition>
+                                            </Grid.RowDefinitions>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"></ColumnDefinition>
+                                                    <ColumnDefinition Width="Auto"></ColumnDefinition>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="学号:" VerticalAlignment="Center" Margin="5" />
+                                                <TextBox Grid.Column="1" Text="{Binding StdNum}" Width="200" Margin="5" />
+                                                <!-- Text="{Binding Username, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/> -->
+                                            </Grid>
+
+                                            <Grid Grid.Row="1">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"></ColumnDefinition>
+                                                    <ColumnDefinition Width="Auto"></ColumnDefinition>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="密码:" VerticalAlignment="Center" Margin="5" />
+                                                <TextBox Grid.Column="1" Text="{Binding StdPwd}" Width="200" Margin="5"
+                                                         PasswordChar="*" />
+                                            </Grid>
+                                        </Grid>
+                                    </sukiUi:SettingsLayoutItem.Content>
+                                </sukiUi:SettingsLayoutItem>
+
+                                <sukiUi:SettingsLayoutItem Header="自动成绩查询">
+                                    <sukiUi:SettingsLayoutItem.Content>
+                                        <StackPanel>
+                                            <CheckBox Content="启用自动查询" Margin="5"
+                                                      IsChecked="{Binding EnableAutoUpdate}" />
+                                            <!-- <CheckBox Content="查询总评成绩" Margin="5"/> -->
+                                            <!-- <CheckBox Content="查询平时成绩" Margin="5"/> -->
+                                            <TextBlock Text="查询间隔（分钟）:" Margin="5" />
+                                            <NumericUpDown Width="100" Margin="5" Value="{Binding UpdateInterval}" />
+                                            <TextBlock Text="执行间隔不宜低于60分钟，否则容易触发风控。" Margin="5" Foreground="Gray" />
+                                            <TextBlock Text="自动查询功能需要在后台运行时才能生效，请确保应用程序在后台运行。" Margin="5"
+                                                       Foreground="Gray" />
+                                        </StackPanel>
+                                    </sukiUi:SettingsLayoutItem.Content>
+                                </sukiUi:SettingsLayoutItem>
+                            </objectModel:ObservableCollection>
+                        </sukiUi:SettingsLayout.Items>
+                    </sukiUi:SettingsLayout>
+                </sukiUi:SukiSideMenuItem.PageContent>
+            </sukiUi:SukiSideMenuItem>
+        </sukiUi:SukiSideMenu.Items>
+    </sukiUi:SukiSideMenu>
+</sukiUi:SukiWindow>
