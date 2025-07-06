@@ -7,12 +7,12 @@
                    xmlns:iconPacks="https://github.com/MahApps/IconPacks.Avalonia"
                    xmlns:objectModel="clr-namespace:System.Collections.ObjectModel;assembly=System.ObjectModel"
                    xmlns:views="clr-namespace:KnowYourGrades.Views"
-                   mc:Ignorable="d" d:DesignWidth="1320" d:DesignHeight="600"
+                   mc:Ignorable="d" d:DesignWidth="1150" d:DesignHeight="600"
                    x:Class="KnowYourGrades.Views.MainWindow"
                    x:DataType="vm:MainWindowViewModel"
                    Icon="/Assets/uestc.ico"
                    Title="KnowYourGrades"
-                   Width="1320"
+                   Width="1150"
                    Height="600">
 
     <Design.DataContext>
@@ -33,7 +33,7 @@
         <Styles>
             <Style Selector="TextBlock">
                 <Setter Property="FontSize" Value="16"></Setter>
-                <Setter Property="FontFamily" Value="Georgia"></Setter>
+                <Setter Property="FontFamily" Value="{StaticResource SourceHanSerifCn}"></Setter>
                 <Setter Property="TextWrapping" Value="Wrap"></Setter>
             </Style>
         </Styles>
@@ -49,10 +49,10 @@
             </Grid>
         </sukiUi:SukiSideMenu.HeaderContent>
         <sukiUi:SukiSideMenu.FooterContent>
-            <StackPanel >
-                <TextBlock Text="V2.0"  Foreground="Gray"  HorizontalAlignment="Center"></TextBlock>
-                <iconPacks:PackIconBoxIcons Kind="LogosGithub" HorizontalAlignment="Center"  Margin="10"/>
-                <TextBlock Text="KaranocaVe"  Foreground="Gray"  HorizontalAlignment="Center"></TextBlock>
+            <StackPanel>
+                <TextBlock Text="V3.0" Foreground="Gray" HorizontalAlignment="Center"></TextBlock>
+                <iconPacks:PackIconBoxIcons Kind="LogosGithub" HorizontalAlignment="Center" Margin="10" />
+                <TextBlock Text="KaranocaVe" Foreground="Gray" HorizontalAlignment="Center"></TextBlock>
             </StackPanel>
         </sukiUi:SukiSideMenu.FooterContent>
         <sukiUi:SukiSideMenu.Items>
@@ -69,20 +69,11 @@
                         <StackPanel Orientation="Horizontal" Margin="10">
                             <ComboBox PlaceholderText="选择学年"
                                       SelectedValue="{Binding SemesterYear}"
-                                      ItemsSource="{Binding availableSemesterYear}">
-                                <!-- <ComboBox.Items> -->
-                                <!--     <TextBlock Text="2022-2023" /> -->
-                                <!--     <TextBlock Text="2023-2024" /> -->
-                                <!--     <TextBlock Text="2024-2025" /> -->
-                                <!--     <TextBlock Text="2025-2026" /> -->
-                                <!--     <TextBlock Text="2026-2027" /> -->
-                                <!--     <TextBlock Text="2027-2028" /> -->
-                                <!--     <TextBlock Text="2028-2029" /> -->
-                                <!-- </ComboBox.Items> -->
+                                      ItemsSource="{Binding AvailableSemesterYear}">
                             </ComboBox>
                             <ComboBox PlaceholderText="选择学期"
                                       SelectedItem="{Binding SemesterNumber}"
-                                      ItemsSource="{Binding availableSemesterNumber}"
+                                      ItemsSource="{Binding AvailableSemesterNumber}"
                                       Margin="10,0,10,0">
                             </ComboBox>
                             <Button Command="{Binding ManuallyLoadCoursesFromPythonAsync}">
@@ -92,41 +83,71 @@
 
                         </StackPanel>
 
-                        <DataGrid Grid.Row="1" AutoGenerateColumns="False"
-                                  ItemsSource="{Binding Courses}"
-                                  Margin="20" IsReadOnly="True">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="课程代码" Binding="{Binding CourseCode}" Width="120" />
-                                <DataGridTextColumn Header="课程序号" Binding="{Binding CourseId}" Width="120" />
-                                <DataGridTextColumn Header="课程名称" Binding="{Binding CourseName}" Width="220" />
-                                <DataGridTextColumn Header="课程类别" Binding="{Binding CourseType}" Width="120" />
-                                <DataGridTextColumn Header="学分" Binding="{Binding Credit}" Width="80" />
-                                <DataGridTextColumn Header="期末成绩" Binding="{Binding FinalExamScore}" Width="80" />
-                                <DataGridTextColumn Header="总评成绩" Binding="{Binding OverallScore}" Width="80" />
-                                <DataGridTextColumn Header="补考总评" Binding="{Binding MakeupScore}" Width="80" />
-                                <DataGridTextColumn Header="最终" Binding="{Binding FinalScore}" Width="80" />
-                                <DataGridTextColumn Header="绩点" Binding="{Binding GPA}" Width="80" />
-                            </DataGrid.Columns>
-                        </DataGrid>
+                        <sukiUi:GlassCard Grid.Row="1" Margin="15,0,15,15">
+                            <DataGrid AutoGenerateColumns="False"
+                                      ItemsSource="{Binding FinalGrades}"
+                                      Margin="5,0,5,5" IsReadOnly="True">
+                                <DataGrid.Columns>
+                                    <!-- <DataGridTextColumn Header="课程代码" Binding="{Binding CourseCode}" Width="120" /> -->
+                                    <!-- <DataGridTextColumn Header="课程序号" Binding="{Binding CourseId}" Width="120" /> -->
+                                    <DataGridTextColumn Header="课程名称" Binding="{Binding CourseName}" Width="220" />
+                                    <DataGridTextColumn Header="课程类别" Binding="{Binding CourseType}" Width="120" />
+                                    <DataGridTextColumn Header="学分" Binding="{Binding Credit}" Width="80" />
+                                    <DataGridTextColumn Header="期末成绩" Binding="{Binding FinalExamScore}" Width="80" />
+                                    <DataGridTextColumn Header="总评成绩" Binding="{Binding OverallScore}" Width="80" />
+                                    <DataGridTextColumn Header="补考总评" Binding="{Binding MakeupScore}" Width="80" />
+                                    <DataGridTextColumn Header="最终" Binding="{Binding FinalScore}" Width="80" />
+                                    <DataGridTextColumn Header="绩点" Binding="{Binding GPA}" Width="80" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </sukiUi:GlassCard>
                     </Grid>
                 </sukiUi:SukiSideMenuItem.PageContent>
             </sukiUi:SukiSideMenuItem>
-            <!-- <sukiUi:SukiSideMenuItem Header="平时成绩" Classes="Compact"> -->
-            <!--     <sukiUi:SukiSideMenuItem.Icon> -->
-            <!--         <iconPacks:PackIconMaterialDesign Kind="CoPresent"/> -->
-            <!--     </sukiUi:SukiSideMenuItem.Icon> -->
-            <!--     <sukiUi:SukiSideMenuItem.PageContent> -->
-            <!--         <TextBlock Text="点击左侧菜单查看课程详情" HorizontalAlignment="Center" VerticalAlignment="Center"/> -->
-            <!--     </sukiUi:SukiSideMenuItem.PageContent> -->
-            <!-- </sukiUi:SukiSideMenuItem> -->
-            <!-- <sukiUi:SukiSideMenuItem Header="我的课程" Classes="Compact"> -->
-            <!--     <sukiUi:SukiSideMenuItem.Icon> -->
-            <!--         <iconPacks:PackIconMaterialDesign Kind="Class"/> -->
-            <!--     </sukiUi:SukiSideMenuItem.Icon> -->
-            <!--     <sukiUi:SukiSideMenuItem.PageContent> -->
-            <!--         <TextBlock Text="点击左侧菜单查看课程详情" HorizontalAlignment="Center" VerticalAlignment="Center"/> -->
-            <!--     </sukiUi:SukiSideMenuItem.PageContent> -->
-            <!-- </sukiUi:SukiSideMenuItem> -->
+            <sukiUi:SukiSideMenuItem Header="平时成绩" Classes="Compact">
+                <sukiUi:SukiSideMenuItem.Icon>
+                    <iconPacks:PackIconMaterialDesign Kind="CoPresent" />
+                </sukiUi:SukiSideMenuItem.Icon>
+                <sukiUi:SukiSideMenuItem.PageContent>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"></RowDefinition>
+                            <RowDefinition Height="Auto"></RowDefinition>
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal" Margin="10">
+                            <ComboBox PlaceholderText="选择学年"
+                                      SelectedValue="{Binding SemesterYear}"
+                                      ItemsSource="{Binding AvailableSemesterYear}">
+                            </ComboBox>
+                            <ComboBox PlaceholderText="选择学期"
+                                      SelectedItem="{Binding SemesterNumber}"
+                                      ItemsSource="{Binding AvailableSemesterNumber}"
+                                      Margin="10,0,10,0">
+                            </ComboBox>
+                            <Button Command="{Binding ManuallyLoadCoursesFromPythonAsync}">
+                                <iconPacks:PackIconMaterialDesign Kind="Cached" />
+                            </Button>
+                            <TextBlock Text="{Binding LastUpdateTime}" Margin="10,13,10,0" Foreground="Gray" />
+
+                        </StackPanel>
+
+                        <sukiUi:GlassCard Grid.Row="1" Margin="15,0,15,15">
+                            <DataGrid AutoGenerateColumns="False"
+                                      ItemsSource="{Binding UsualGrades}"
+                                      Margin="5,0,5,5" IsReadOnly="True">
+                                <DataGrid.Columns>
+                                    <!-- <DataGridTextColumn Header="课程代码" Binding="{Binding CourseCode}" Width="120" /> -->
+                                    <!-- <DataGridTextColumn Header="课程序号" Binding="{Binding CourseId}" Width="120" /> -->
+                                    <DataGridTextColumn Header="课程名称" Binding="{Binding CourseName}" Width="300" />
+                                    <DataGridTextColumn Header="课程类别" Binding="{Binding CourseType}" Width="300" />
+                                    <DataGridTextColumn Header="学分" Binding="{Binding Credit}" Width="80" />
+                                    <DataGridTextColumn Header="平时成绩" Binding="{Binding UsualScore}" Width="80" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </sukiUi:GlassCard>
+                    </Grid>
+                </sukiUi:SukiSideMenuItem.PageContent>
+            </sukiUi:SukiSideMenuItem>
             <sukiUi:SukiSideMenuItem Header="设置" Classes="Compact">
                 <sukiUi:SukiSideMenuItem.Icon>
                     <iconPacks:PackIconMaterialDesign Kind="Settings" />
@@ -150,7 +171,6 @@
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Text="学号:" VerticalAlignment="Center" Margin="5" />
                                                 <TextBox Grid.Column="1" Text="{Binding StdNum}" Width="200" Margin="5" />
-                                                <!-- Text="{Binding Username, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/> -->
                                             </Grid>
 
                                             <Grid Grid.Row="1">
@@ -177,6 +197,10 @@
                                             <NumericUpDown Width="100" Margin="5" Value="{Binding UpdateInterval}" />
                                             <TextBlock Text="执行间隔不宜低于60分钟，否则容易触发风控。" Margin="5" Foreground="Gray" />
                                             <TextBlock Text="自动查询功能需要在后台运行时才能生效，请确保应用程序在后台运行。" Margin="5"
+                                                       Foreground="Gray" />
+                                            <CheckBox Content="有更新时聚焦窗口" Margin="5"
+                                                      IsChecked="{Binding NeedHighlight}" />
+                                            <TextBlock Text="查询到新数据时会自动将窗口提到最前，打游戏慎用。" Margin="5"
                                                        Foreground="Gray" />
                                         </StackPanel>
                                     </sukiUi:SettingsLayoutItem.Content>

@@ -10,11 +10,15 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Notifications;
 using Avalonia.Threading;
 using DynamicData.Binding;
 using ReactiveUI;
 using SukiUI.Toasts;
+
 
 namespace KnowYourGrades.ViewModels;
 
@@ -34,18 +38,26 @@ public class MainWindowViewModel : ViewModelBase
                 x => x.StdPwd,
                 x => x.SemesterYear,
                 x => x.SemesterNumber)
-            .Select(_ => Unit.Default); // 只关心“发生了变化”这一事件
-
-        // 监听 Courses 集合
-        var coursesChangedStream = Courses
-            .ToObservableChangeSet() // 需要 NuGet: DynamicData
             .Select(_ => Unit.Default);
 
-        //  合并并节流 1 s 后保存
+
+        // 监听 FinalGrades 和 UsualGrades 集合
+        var finalGradesChangedStream = FinalGrades
+            .ToObservableChangeSet()
+            .Select(_ => Unit.Default);
+
+        var usualGradesChangedStream = UsualGrades
+            .ToObservableChangeSet()
+            .Select(_ => Unit.Default);
+
         propertyChangedStream
-            .Merge(coursesChangedStream)
+            .Merge(finalGradesChangedStream)
+            .Merge(usualGradesChangedStream)
             .Throttle(TimeSpan.FromSeconds(1))
             .Subscribe(async _ => await SaveStateAsync());
+
+
+
 
         _autoUpdateTimer = new DispatcherTimer
         {
@@ -59,12 +71,32 @@ public class MainWindowViewModel : ViewModelBase
             SendNotification("欢迎使用 KnowYourGrades",
                 "请先填写学号、密码和学年学期，然后点击查询按钮。");
 
+            _window = Application.Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
 
             if (EnableAutoUpdate)
             {
                 UpdateTimerState();
             }
         });
+    }
+
+    private  Window? _window = null;
+
+    public static void BringToFront(Window window)
+    {
+        window.Topmost = true;
+        window.Activate();
+        window.Topmost = false;
+    }
+
+    private bool _needHighlight;
+
+    public bool NeedHighlight
+    {
+        get => _needHighlight;
+        set => this.RaiseAndSetIfChanged(ref _needHighlight, value);
     }
 
     private class AppState
@@ -76,7 +108,9 @@ public class MainWindowViewModel : ViewModelBase
         public string StdPwd { get; set; } = string.Empty;
         public string SemesterYear { get; set; } = string.Empty;
         public string SemesterNumber { get; set; } = string.Empty;
-        public List<Course> Courses { get; set; } = new(); // List 比 ObservableCollection 易序列化
+        public List<FinalGrade> FinalGrades { get; set; } = new();
+        public List<UsualGrade> UsualGrades { get; set; } = new();
+        public bool NeedHighlight { get; set; }
     }
 
     private bool _isLoading = false;
@@ -158,15 +192,18 @@ public class MainWindowViewModel : ViewModelBase
 
     private string _semesterId = string.Empty;
 
-    public ObservableCollection<string> availableSemesterYear { get; } = new ObservableCollection<string>
-    {
+    public ObservableCollection<string> AvailableSemesterYear { get; } =
+    [
         "2022-2023",
         "2023-2024",
         "2024-2025",
         "2025-2026",
         "2026-2027",
         "2027-2028",
-    };
+        "2028-2029",
+        "2029-2030"
+
+    ];
 
     private string _semesterYear = string.Empty;
 
@@ -176,11 +213,11 @@ public class MainWindowViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _semesterYear, value);
     }
 
-    public ObservableCollection<string> availableSemesterNumber { get; } = new ObservableCollection<string>
-    {
+    public ObservableCollection<string> AvailableSemesterNumber { get; } =
+    [
         "第一学期",
         "第二学期"
-    };
+    ];
 
     private string _semesterNumber = string.Empty;
 
@@ -190,7 +227,34 @@ public class MainWindowViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _semesterNumber, value);
     }
 
-    public class Course
+    private static string CalculateSemesterId(string yearRange, string semesterName)
+    {
+        string[] years = yearRange.Split('-');
+        if (years.Length != 2 || !int.TryParse(years[0], out int startYear))
+        {
+            throw new ArgumentException("学年范围格式应为 'YYYY-YYYY'");
+        }
+
+        int baseId = (startYear - 2013) * 40 + 3;
+
+        int result;
+        if (semesterName == "第一学期")
+        {
+            result = baseId;
+        }
+        else if (semesterName == "第二学期")
+        {
+            result = baseId + 20;
+        }
+        else
+        {
+            throw new ArgumentException("学期名称应为“第一学期”或“第二学期”");
+        }
+
+        return result.ToString();
+    }
+
+    public class FinalGrade
     {
         [JsonPropertyName("学年学期")]
         public string Semester { get; set; }
@@ -226,41 +290,42 @@ public class MainWindowViewModel : ViewModelBase
         public string GPA { get; set; }
     }
 
-
-    private ObservableCollection<Course> _courses = new();
-    public ObservableCollection<Course> Courses
+    private ObservableCollection<FinalGrade> _finalGrades = new();
+    public ObservableCollection<FinalGrade> FinalGrades
     {
-        get => _courses;
-        set => this.RaiseAndSetIfChanged(ref _courses, value); // ReactiveUI 的推荐方式
+        get => _finalGrades;
+        set => this.RaiseAndSetIfChanged(ref _finalGrades, value);
     }
 
-    public static string CalculateSemesterId(string yearRange, string semesterName)
+    public class UsualGrade
     {
-        // 解析起始年份，例如 "2022-2023" -> 2022
-        string[] years = yearRange.Split('-');
-        if (years.Length != 2 || !int.TryParse(years[0], out int startYear))
-        {
-            throw new ArgumentException("学年范围格式应为 'YYYY-YYYY'");
-        }
+        [JsonPropertyName("学年学期")]
+        public string Semester { get; set; }
 
-        // 基础值计算
-        int baseId = (startYear - 2013) * 40 + 3;
+        [JsonPropertyName("课程代码")]
+        public string CourseCode { get; set; }
 
-        int result;
-        if (semesterName == "第一学期")
-        {
-            result = baseId;
-        }
-        else if (semesterName == "第二学期")
-        {
-            result = baseId + 20;
-        }
-        else
-        {
-            throw new ArgumentException("学期名称应为“第一学期”或“第二学期”");
-        }
+        [JsonPropertyName("课程序号")]
+        public string CourseId { get; set; }
 
-        return result.ToString();
+        [JsonPropertyName("课程名称")]
+        public string CourseName { get; set; }
+
+        [JsonPropertyName("课程类别")]
+        public string CourseType { get; set; }
+
+        [JsonPropertyName("学分")]
+        public string Credit { get; set; }
+
+        [JsonPropertyName("平时成绩")]
+        public string UsualScore { get; set; }
+    }
+
+    private ObservableCollection<UsualGrade> _usualGrades = new();
+    public ObservableCollection<UsualGrade> UsualGrades
+    {
+        get => _usualGrades;
+        set => this.RaiseAndSetIfChanged(ref _usualGrades, value);
     }
 
 
@@ -276,26 +341,28 @@ public class MainWindowViewModel : ViewModelBase
         try
         {
             using var doc = JsonDocument.Parse(json);
-            var status = doc.RootElement.GetProperty("status").GetString();
 
-            if (status == "success")
+            var usualGradesJson = doc.RootElement.GetProperty("usual_grades").ToString();
+            var finalGradesJson = doc.RootElement.GetProperty("final_grades").ToString();
+
+            var parsedUsualGrades = JsonSerializer.Deserialize<List<UsualGrade>>(usualGradesJson);
+            var parsedFinalGrades = JsonSerializer.Deserialize<List<FinalGrade>>(finalGradesJson);
+
+            UsualGrades.Clear();
+            if (parsedUsualGrades != null)
             {
-                var newCoursesJson = doc.RootElement.GetProperty("new_courses").ToString();
-
-                var parsedCourses = JsonSerializer.Deserialize<List<Course>>(newCoursesJson);
-
-                // ✅ 更新 ObservableCollection
-                Courses.Clear();
-                foreach (var course in parsedCourses)
-                    Courses.Add(course);
-            }
-            else
-            {
-                // 可选：处理 "no_change" 状态
-                Courses.Clear(); // 或者保留原内容
+                foreach (var course in parsedUsualGrades)
+                    UsualGrades.Add(course);
             }
 
-            LastUpdateTime = "上次查询时间：" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            FinalGrades.Clear();
+            if (parsedFinalGrades != null)
+            {
+                foreach (var course in parsedFinalGrades)
+                    FinalGrades.Add(course);
+            }
+
+            LastUpdateTime = "上次手动查询时间：" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         }
         catch (Exception ex)
         {
@@ -307,6 +374,17 @@ public class MainWindowViewModel : ViewModelBase
                 .Queue();
         }
         IsLoading = false;
+
+        // 发送通知提示查询完毕
+        SendNotification("查询完成", "已成功加载成绩数据。请查看成绩列表。");
+
+        // 聚焦窗口
+            if (NeedHighlight)
+            {
+                if (_window != null)
+                    BringToFront(_window);
+            }
+
     }
 
     public async Task TimerCheck()
@@ -321,51 +399,73 @@ public class MainWindowViewModel : ViewModelBase
         try
         {
             using var doc = JsonDocument.Parse(json);
-            var status = doc.RootElement.GetProperty("status").GetString();
 
-            if (status == "success")
+            var usualGradesJson = doc.RootElement.GetProperty("usual_grades").ToString();
+            var finalGradesJson = doc.RootElement.GetProperty("final_grades").ToString();
+
+            var parsedUsualGrades = JsonSerializer.Deserialize<List<UsualGrade>>(usualGradesJson);
+            var parsedFinalGrades = JsonSerializer.Deserialize<List<FinalGrade>>(finalGradesJson);
+
+            var oldUsualGrades = new List<UsualGrade>(UsualGrades);
+            var diffCoursesUsual = new List<UsualGrade>();
+            foreach (var newCourse in parsedUsualGrades)
             {
-                var newCoursesJson = doc.RootElement.GetProperty("new_courses").ToString();
-                var parsedCourses = JsonSerializer.Deserialize<List<Course>>(newCoursesJson);
-
-                // 比较新旧数据
-                var oldCourses = new List<Course>(Courses);
-                var diffCourses = new List<Course>();
-                foreach (var newCourse in parsedCourses)
+                var match = oldUsualGrades.Find(c => c.CourseCode == newCourse.CourseCode && c.CourseId == newCourse.CourseId);
+                if (match == null || JsonSerializer.Serialize(match) != JsonSerializer.Serialize(newCourse))
                 {
-                    // 以课程代码和课程序号为唯一标识
-                    var match = oldCourses.Find(c => c.CourseCode == newCourse.CourseCode && c.CourseId == newCourse.CourseId);
-                    if (match == null || JsonSerializer.Serialize(match) != JsonSerializer.Serialize(newCourse))
-                    {
-                        diffCourses.Add(newCourse);
-                    }
+                    diffCoursesUsual.Add(newCourse);
                 }
-
-                // 发送通知
-                if (diffCourses.Count > 0)
-                {
-                    foreach (var course in diffCourses)
-                    {
-                        SendNotification($"课程更新: {course.CourseName}", $"成绩: {course.FinalScore ?? course.OverallScore ?? "无"}");
-                    }
-                }
-
-                // ✅ 更新 ObservableCollection
-                Courses.Clear();
-                foreach (var course in parsedCourses)
-                    Courses.Add(course);
             }
-            else
+            // 发送通知
+            if (diffCoursesUsual.Count > 0)
             {
-                // 可选：处理 "no_change" 状态
-                Courses.Clear(); // 或者保留原内容
+                foreach (var course in diffCoursesUsual)
+                {
+                    SendNotification($"平时成绩更新: {course.CourseName}", $"成绩: {course.UsualScore ?? "无"}");
+                }
+            }
+            UsualGrades.Clear();
+            foreach (var course in parsedUsualGrades)
+                UsualGrades.Add(course);
+
+            var oldFinalGrades = new List<FinalGrade>(FinalGrades);
+            var diffCoursesFinal = new List<FinalGrade>();
+            foreach (var newCourse in parsedFinalGrades)
+            {
+                var match = oldFinalGrades.Find(c => c.CourseCode == newCourse.CourseCode && c.CourseId == newCourse.CourseId);
+                if (match == null || JsonSerializer.Serialize(match) != JsonSerializer.Serialize(newCourse))
+                {
+                    diffCoursesFinal.Add(newCourse);
+                }
+            }
+            // 发送通知
+            if (diffCoursesFinal.Count > 0)
+            {
+                foreach (var course in diffCoursesFinal)
+                {
+                    SendNotification($"总评成绩更新: {course.CourseName}", $"成绩: {course.FinalScore ?? course.OverallScore ?? "无"}");
+                }
             }
 
-            LastUpdateTime = "上次查询时间：" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            // 聚焦窗口
+            if(diffCoursesFinal.Count > 0||diffCoursesUsual.Count>0)
+            {
+                if (NeedHighlight)
+                {
+                    if (_window != null)
+                        BringToFront(_window);
+                }
+            }
+
+            FinalGrades.Clear();
+            foreach (var course in parsedFinalGrades)
+                FinalGrades.Add(course);
+
+            LastUpdateTime = "上次自动查询时间：" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine("JSON 解析失败: " + ex.Message);
+            Debug.WriteLine("解析失败: " + ex.Message);
         }
         IsLoading = false;
     }
@@ -373,7 +473,7 @@ public class MainWindowViewModel : ViewModelBase
     private DispatcherTimer _autoUpdateTimer;
 
 
-    private async Task<string> RunPythonAsync(string exePath, string args = "")
+    private async Task<string> RunPythonAsync(string exePath, string args)
     {
         return await Task.Run(() =>
         {
@@ -439,9 +539,15 @@ public class MainWindowViewModel : ViewModelBase
             SemesterYear = state.SemesterYear;
             SemesterNumber = state.SemesterNumber;
 
-            Courses.Clear();
-            foreach (var c in state.Courses)
-                Courses.Add(c);
+            FinalGrades.Clear();
+            foreach (var c in state.FinalGrades)
+                FinalGrades.Add(c);
+
+            UsualGrades.Clear();
+            foreach (var c in state.UsualGrades)
+                UsualGrades.Add(c);
+
+            NeedHighlight = state.NeedHighlight;
         }
         catch (Exception ex)
         {
@@ -449,7 +555,7 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
-    /// <summary>任何属性、Courses 变化后 1 秒内触发</summary>
+    /// <summary>任何属性、FinalGrades 变化后 1 秒内触发</summary>
     private async Task SaveStateAsync()
     {
         try
@@ -467,7 +573,9 @@ public class MainWindowViewModel : ViewModelBase
                 StdPwd = StdPwd,
                 SemesterYear = SemesterYear,
                 SemesterNumber = SemesterNumber,
-                Courses = new List<Course>(Courses) // 拷贝一份
+                FinalGrades = new List<FinalGrade>(FinalGrades),
+                UsualGrades = new List<UsualGrade>(UsualGrades),
+                NeedHighlight = NeedHighlight
             };
 
             var options = new JsonSerializerOptions
@@ -484,8 +592,5 @@ public class MainWindowViewModel : ViewModelBase
             Debug.WriteLine("保存持久化文件失败: " + ex.Message);
         }
     }
-
     #endregion
-
-
 }

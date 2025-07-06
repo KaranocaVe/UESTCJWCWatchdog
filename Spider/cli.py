@@ -107,6 +107,27 @@ def get_final_grades(driver, semister):
     return grade_json
 
 
+def get_usual_grades(driver, semister):
+    """
+    获取平时成绩
+    Returns:
+        usual_grades (list[dict]): 平时成绩信息列表
+    """
+    driver.add_cookie({'name': 'semester.id', 'value': str(semister)})
+    driver.get("https://eams.uestc.edu.cn/eams/teach/grade/usual/usual-grade-std.action")
+    time.sleep(0.5)
+
+    # === 获取平时成绩表 ===
+    table = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "table.gridtable")))
+    rows = table.find_elements(By.XPATH, ".//tbody/tr")
+    usual_grade_list = [[col.text.strip() for col in row.find_elements(By.TAG_NAME, "td")][:7] for row in rows]
+
+    headers = ["学年学期", "课程代码", "课程序号", "课程名称", "课程类别", "学分", "平时成绩"]
+    usual_grades_json = [dict(zip(headers, row)) for row in usual_grade_list]
+
+    return usual_grades_json
+
+
 def main():
     # 通过命令行参数读入账号密码
     if len(sys.argv) < 4:
@@ -117,24 +138,26 @@ def main():
     semester_id = sys.argv[3]
 
     driver = create_driver_and_login(dev=False, stdnum=stdnum, stdpwd=stdpwd)
-    new_courses = []
+    final_grades = []
     try:
-        new_courses = get_final_grades(driver=driver, semister=semester_id)
+        final_grades = get_final_grades(driver=driver, semister=semester_id)
     except Exception as e:
-        print(f"查询出错：{e}")
+        print(f"查询最终成绩出错：{e}", file=sys.stderr)
         driver.quit()
         sys.exit(1)
 
-    if new_courses and {} not in new_courses:
-        result = {
-            "status": "success",
-            "new_courses": new_courses
-        }
-    else:
-        result = {
-            "status": "no_change",
-            "new_courses": []
-        }
+    try:
+        usual_grades = get_usual_grades(driver=driver, semister=semester_id)
+    except Exception as e:
+        print(f"查询平时成绩出错：{e}", file=sys.stderr)
+        driver.quit()
+        sys.exit(1)
+
+    # 合并平时成绩和期末成绩
+    result = {
+        "usual_grades": usual_grades,
+        "final_grades": final_grades
+    }
 
     print(json.dumps(result, ensure_ascii=False))  # 关键行：输出为合法 JSON
 

@@ -1,4 +1,4 @@
-# main.spec
+# cli.spec
 # -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
@@ -27,7 +27,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='main',
+    name='cli',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -43,5 +43,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='main'
+    name='cli'
 )

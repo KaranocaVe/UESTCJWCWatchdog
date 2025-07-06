@@ -4,14 +4,18 @@
              xmlns:local="using:KnowYourGrades"
              xmlns:sukiUi="clr-namespace:SukiUI;assembly=SukiUI"
              RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+    <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
-        <local:ViewLocator/>
+        <local:ViewLocator />
     </Application.DataTemplates>
-  
+
     <Application.Styles>
-        <sukiUi:SukiTheme ThemeColor="Blue"  />
+        <sukiUi:SukiTheme ThemeColor="Blue" />
         <StyleInclude Source="avares://IconPacks.Avalonia/Icons.axaml" />
     </Application.Styles>
+
+    <Application.Resources>
+        <FontFamily x:Key="SourceHanSerifCn">avares://KnowYourGrades/Assets/SourceHanSerifCN-Regular.ttf#Source Han Serif CN</FontFamily>
+    </Application.Resources>
 </Application>
