@@ -92,7 +92,38 @@ jobs:
             mkdir -p "$APP_BUNDLE/Contents/MacOS"
             mkdir -p "$APP_BUNDLE/Contents/Resources"
 
-            # 创建 Info.plist
+            # 创建应用图标（从 .ico 转换为 .icns）
+            ICONSET_DIR="app-icon.iconset"
+            mkdir -p "$ICONSET_DIR"
+
+            # 使用 sipes 从 .ico 提取并生成不同尺寸（先转换为 1024x1024 的基准图）
+            # macOS runner 上通常预装 ImageMagick，如果没有则使用 sips
+            if command -v magick &> /dev/null; then
+              # 使用 ImageMagick 从 .ico 提取最大尺寸并生成 iconset
+              magick "src/Watchdog.App/Assets/avalonia-logo.ico"[0] -resize 1024x1024 "$ICONSET_DIR/icon_512x512@2x.png"
+              magick "src/Watchdog.App/Assets/avalonia-logo.ico"[0] -resize 512x512 "$ICONSET_DIR/icon_512x512.png"
+              magick "src/Watchdog.App/Assets/avalonia-logo.ico"[0] -resize 256x256 "$ICONSET_DIR/icon_256x256.png"
+              magick "src/Watchdog.App/Assets/avalonia-logo.ico"[0] -resize 256x256 "$ICONSET_DIR/icon_128x128@2x.png"
+              magick "src/Watchdog.App/Assets/avalonia-logo.ico"[0] -resize 128x128 "$ICONSET_DIR/icon_128x128.png"
+              magick "src/Watchdog.App/Assets/avalonia-logo.ico"[0] -resize 64x64 "$ICONSET_DIR/icon_32x32@2x.png"
+              magick "src/Watchdog.App/Assets/avalonia-logo.ico"[0] -resize 32x32 "$ICONSET_DIR/icon_32x32.png"
+              magick "src/Watchdog.App/Assets/avalonia-logo.ico"[0] -resize 16x16 "$ICONSET_DIR/icon_16x16.png"
+            else
+              # 使用 sips 工具（macOS 内置）
+              sips -s format png "src/Watchdog.App/Assets/avalonia-logo.ico" --out "$ICONSET_DIR/icon_512x512@2x.png" -z 1024 1024
+              sips -s format png "src/Watchdog.App/Assets/avalonia-logo.ico" --out "$ICONSET_DIR/icon_512x512.png" -z 512 512
+              sips -s format png "src/Watchdog.App/Assets/avalonia-logo.ico" --out "$ICONSET_DIR/icon_256x256.png" -z 256 256
+              sips -s format png "src/Watchdog.App/Assets/avalonia-logo.ico" --out "$ICONSET_DIR/icon_128x128@2x.png" -z 256 256
+              sips -s format png "src/Watchdog.App/Assets/avalonia-logo.ico" --out "$ICONSET_DIR/icon_128x128.png" -z 128 128
+              sips -s format png "src/Watchdog.App/Assets/avalonia-logo.ico" --out "$ICONSET_DIR/icon_32x32@2x.png" -z 64 64
+              sips -s format png "src/Watchdog.App/Assets/avalonia-logo.ico" --out "$ICONSET_DIR/icon_32x32.png" -z 32 32
+              sips -s format png "src/Watchdog.App/Assets/avalonia-logo.ico" --out "$ICONSET_DIR/icon_16x16.png" -z 16 16
+            fi
+
+            # 使用 iconutil 创建 .icns 文件
+            iconutil -c icns "$ICONSET_DIR" -o "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+
+            # 创建 Info.plist（包含图标文件引用）
             printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
               '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
               '<plist version="1.0">' \
@@ -109,6 +140,8 @@ jobs:
               '    <string>5.1.0</string>' \
               '    <key>CFBundleVersion</key>' \
               '    <string>5.1.0</string>' \
+              '    <key>CFBundleIconFile</key>' \
+              '    <string>AppIcon</string>' \
               '    <key>LSMinimumSystemVersion</key>' \
               '    <string>10.15</string>' \
               '    <key>NSHighResolutionCapable</key>' \
@@ -122,6 +155,7 @@ jobs:
             find "artifacts/publish/$RID/app" -maxdepth 1 \
               ! -name "Watchdog.App.app" \
               ! -name "app" \
+              ! -name "app-icon.iconset" \
               -exec cp -r {} "$APP_BUNDLE/Contents/MacOS/" \;
 
             chmod +x "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
