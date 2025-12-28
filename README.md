@@ -2,6 +2,9 @@
 
 [![CI](https://github.com/karanocave/UESTCJWCWatchdog/actions/workflows/ci.yml/badge.svg)](https://github.com/karanocave/UESTCJWCWatchdog/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/karanocave/UESTCJWCWatchdog)](https://github.com/karanocave/UESTCJWCWatchdog/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)](https://github.com/karanocave/UESTCJWCWatchdog/releases)
+[![.NET](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://github.com/dotnet/core)
+[![Stars](https://img.shields.io/github/stars/karanocave/UESTCJWCWatchdog?style=social)](https://github.com/karanocave/UESTCJWCWatchdog/stargazers)
 
 跨平台的 UESTC 教务系统（EAMS）成绩查询/监控工具：提供桌面 GUI（AvaloniaUI）与 CLI 两种使用方式，默认无头模式运行，并支持登录态保留与成绩更新通知（ntfy.sh）。
 
