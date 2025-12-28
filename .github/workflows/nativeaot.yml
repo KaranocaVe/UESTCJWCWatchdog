@@ -120,18 +120,70 @@ jobs:
           $rid = "${{ matrix.rid }}"
           $ver = "${{ steps.vars.outputs.version }}"
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Compress-Archive -Path "artifacts/publish-aot/$rid/cli/*" -DestinationPath "dist/UESTCJWCWatchdog-Cli-AOT-$ver-$rid.zip" -Force
           Compress-Archive -Path "artifacts/publish-aot/$rid/app/*" -DestinationPath "dist/UESTCJWCWatchdog-App-AOT-$ver-$rid.zip" -Force
 
-      - name: Package (macOS/Linux)
-        if: runner.os != 'Windows'
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
         shell: bash
         run: |
           set -euo pipefail
           RID="${{ matrix.rid }}"
           VERSION="${{ steps.vars.outputs.version }}"
           mkdir -p dist
-          tar -C "artifacts/publish-aot/$RID/cli" -czf "dist/UESTCJWCWatchdog-Cli-AOT-${VERSION}-${RID}.tar.gz" .
+
+          # 创建 App .app bundle
+          APP_BUNDLE="artifacts/publish-aot/$RID/app/Watchdog.App.app"
+          mkdir -p "$APP_BUNDLE/Contents/MacOS"
+          mkdir -p "$APP_BUNDLE/Contents/Resources"
+
+          # 创建 Info.plist
+          cat > "$APP_BUNDLE/Contents/Info.plist" << 'EOF'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>Watchdog.App</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.uestcjwc.watchdog</string>
+            <key>CFBundleName</key>
+            <string>Watchdog.App</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>0.0.0</string>
+            <key>CFBundleVersion</key>
+            <string>0.0.0</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>10.15</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+            <key>NSPrincipalClass</key>
+            <string>NSApplication</string>
+        </dict>
+        </plist>
+        EOF
+
+          # 复制所有文件到 .app bundle
+          find "artifacts/publish-aot/$RID/app" -maxdepth 1 \
+            ! -name "Watchdog.App.app" \
+            ! -name "app" \
+            -exec cp -r {} "$APP_BUNDLE/Contents/MacOS/" \;
+
+          chmod +x "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
+
+          # 只打包 .app bundle 本身
+          tar -C "artifacts/publish-aot/$RID/app" -czf "dist/UESTCJWCWatchdog-App-AOT-${VERSION}-${RID}.tar.gz" Watchdog.App.app
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          RID="${{ matrix.rid }}"
+          VERSION="${{ steps.vars.outputs.version }}"
+          mkdir -p dist
+          chmod +x "artifacts/publish-aot/$RID/app/Watchdog.App" || true
           tar -C "artifacts/publish-aot/$RID/app" -czf "dist/UESTCJWCWatchdog-App-AOT-${VERSION}-${RID}.tar.gz" .
 
       - name: Upload artifacts
