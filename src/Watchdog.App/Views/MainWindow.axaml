@@ -142,11 +142,24 @@
                                     <CheckBox Content="开启自动刷新" IsChecked="{Binding AutoRefreshEnabled}" IsEnabled="{Binding CanInteract}" />
                                     <TextBlock Grid.Column="1" Text="{Binding NextAutoRefreshText, StringFormat=下次刷新：{0}}" Opacity="0.7" VerticalAlignment="Center" />
 
-	                                    <ComboBox Grid.Row="1"
-	                                              ItemsSource="{Binding AutoRefreshIntervalOptions}"
-	                                              SelectedIndex="{Binding AutoRefreshIntervalIndex, Mode=TwoWay}"
-	                                              IsEnabled="{Binding CanChangeAutoRefreshInterval}" />
-	                                </Grid>
+                                    <ComboBox Grid.Row="1"
+                                              ItemsSource="{Binding AutoRefreshIntervalOptions}"
+                                              SelectedIndex="{Binding AutoRefreshIntervalIndex, Mode=TwoWay}"
+                                              IsEnabled="{Binding CanChangeAutoRefreshInterval}" />
+                                </Grid>
+
+                                <TextBlock Text="推送通知（ntfy.sh）" Opacity="0.7" />
+                                <CheckBox Content="发现成绩更新时推送消息" IsChecked="{Binding NtfyEnabled}" IsEnabled="{Binding CanInteract}" />
+                                <TextBox Text="{Binding NtfySubscribeUrl}"
+                                         IsReadOnly="True"
+                                         FontSize="12"
+                                         Watermark="订阅地址"
+                                         IsEnabled="{Binding CanInteract}" />
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button Content="打开订阅页面" Command="{Binding OpenNtfySubscribePageCommand}" IsEnabled="{Binding CanInteract}" />
+                                    <Button Content="重新生成通道" Command="{Binding RegenerateNtfyTopicCommand}" IsEnabled="{Binding CanInteract}" />
+                                    <Button Content="发送测试消息" Command="{Binding SendNtfyTestMessageCommand}" IsEnabled="{Binding CanInteract}" />
+                                </StackPanel>
 
                                 <StackPanel Orientation="Horizontal" Spacing="10">
                                     <Button Content="导入 .env（开发用）" Command="{Binding ImportFromEnvCommand}" IsEnabled="{Binding CanInteract}" />
