@@ -189,28 +189,37 @@ jobs:
               security import "$CERTIFICATE_PATH" -k ~/Library/Keychains/build.keychain-db -P "${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
               security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain-db
 
-              # 先签名所有二进制文件（排除 .playwright）
-              find "$APP_BUNDLE/Contents/MacOS" \
-                \( -type f -name "*.dll" -o -name "*.dylib" -o -name "*.so" \) \
-                ! -path "*/.playwright/*" \
-                -exec codesign --force --sign "${{ secrets.MACOS_SIGNING_IDENTITY }}" {} \;
+              # 临时移除 .playwright 以避免签名问题
+              if [[ -d "$APP_BUNDLE/Contents/MacOS/.playwright" ]]; then
+                mv "$APP_BUNDLE/Contents/MacOS/.playwright" "$RUNNER_TEMP/.playwright_backup"
+              fi
 
-              # 最后签名主可执行文件
-              codesign --force --sign "${{ secrets.MACOS_SIGNING_IDENTITY }}" "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
+              # 深度签名整个 bundle
+              codesign --force --deep --sign "${{ secrets.MACOS_SIGNING_IDENTITY }}" "$APP_BUNDLE"
+
+              # 恢复 .playwright 目录
+              if [[ -d "$RUNNER_TEMP/.playwright_backup" ]]; then
+                mv "$RUNNER_TEMP/.playwright_backup" "$APP_BUNDLE/Contents/MacOS/.playwright"
+              fi
 
               # 清理
               security delete-keychain build.keychain-db
               rm "$CERTIFICATE_PATH"
             else
               echo "⚠️  未找到证书，使用 ad-hoc 签名..."
-              # Ad-hoc 签名所有二进制文件（排除 .playwright）
-              find "$APP_BUNDLE/Contents/MacOS" \
-                \( -type f -name "*.dll" -o -name "*.dylib" -o -name "*.so" \) \
-                ! -path "*/.playwright/*" \
-                -exec codesign --force --sign - {} \;
 
-              # 最后签名主可执行文件
-              codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
+              # 临时移除 .playwright 以避免签名问题
+              if [[ -d "$APP_BUNDLE/Contents/MacOS/.playwright" ]]; then
+                mv "$APP_BUNDLE/Contents/MacOS/.playwright" "$RUNNER_TEMP/.playwright_backup"
+              fi
+
+              # 深度签名整个 bundle
+              codesign --force --deep --sign - "$APP_BUNDLE"
+
+              # 恢复 .playwright 目录
+              if [[ -d "$RUNNER_TEMP/.playwright_backup" ]]; then
+                mv "$RUNNER_TEMP/.playwright_backup" "$APP_BUNDLE/Contents/MacOS/.playwright"
+              fi
             fi
 
             # 只打包 .app bundle 本身
