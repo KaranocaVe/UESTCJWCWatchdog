@@ -47,31 +47,6 @@ jobs:
       - name: Restore
         run: dotnet restore UESTCJWCWatchdog.sln
 
-      - name: Publish CLI
-        shell: bash
-        run: |
-          if [[ "${{ matrix.rid }}" == osx-* ]]; then
-            # macOS: 不使用单文件发布，保留 .app bundle 结构
-            dotnet publish src/Watchdog.Cli/Watchdog.Cli.csproj \
-              -c Release \
-              -r "${{ matrix.rid }}" \
-              --self-contained true \
-              -o "artifacts/publish/${{ matrix.rid }}/cli" \
-              -p:Version="${{ steps.vars.outputs.version }}" \
-              -p:PublishTrimmed=false
-          else
-            # 其他平台使用单文件发布
-            dotnet publish src/Watchdog.Cli/Watchdog.Cli.csproj \
-              -c Release \
-              -r "${{ matrix.rid }}" \
-              --self-contained true \
-              -o "artifacts/publish/${{ matrix.rid }}/cli" \
-              -p:Version="${{ steps.vars.outputs.version }}" \
-              -p:PublishSingleFile=true \
-              -p:IncludeNativeLibrariesForSelfExtract=true \
-              -p:PublishTrimmed=false
-          fi
-
       - name: Publish App
         shell: bash
         run: |
@@ -108,14 +83,9 @@ jobs:
 
           if [[ "$RID" == win-* ]]; then
             # Windows: 使用 zip
-            (cd "artifacts/publish/$RID/cli" && zip -r "../../../../dist/UESTCJWCWatchdog-Cli-${VERSION}-${RID}.zip" .)
             (cd "artifacts/publish/$RID/app" && zip -r "../../../../dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.zip" .)
           elif [[ "$RID" == osx-* ]]; then
             # macOS: 创建 .app bundle 结构
-
-            # 打包 CLI
-            chmod +x "artifacts/publish/$RID/cli/Watchdog.Cli"
-            tar -C "artifacts/publish/$RID/cli" -czf "dist/UESTCJWCWatchdog-Cli-${VERSION}-${RID}.tar.gz" .
 
             # 创建 App .app bundle
             APP_BUNDLE="artifacts/publish/$RID/app/Watchdog.App.app"
@@ -162,9 +132,7 @@ jobs:
             tar -C "artifacts/publish/$RID/app" -czf "dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.tar.gz" .
           else
             # Linux: 设置可执行权限并使用 tar 打包
-            chmod +x "artifacts/publish/$RID/cli/Watchdog.Cli" || true
             chmod +x "artifacts/publish/$RID/app/Watchdog.App" || true
-            tar -C "artifacts/publish/$RID/cli" -czf "dist/UESTCJWCWatchdog-Cli-${VERSION}-${RID}.tar.gz" .
             tar -C "artifacts/publish/$RID/app" -czf "dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.tar.gz" .
           fi
 
