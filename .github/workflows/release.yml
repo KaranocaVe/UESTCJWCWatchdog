@@ -50,28 +50,52 @@ jobs:
       - name: Publish CLI
         shell: bash
         run: |
-          dotnet publish src/Watchdog.Cli/Watchdog.Cli.csproj \
-            -c Release \
-            -r "${{ matrix.rid }}" \
-            --self-contained true \
-            -o "artifacts/publish/${{ matrix.rid }}/cli" \
-            -p:Version="${{ steps.vars.outputs.version }}" \
-            -p:PublishSingleFile=true \
-            -p:IncludeNativeLibrariesForSelfExtract=true \
-            -p:PublishTrimmed=false
+          if [[ "${{ matrix.rid }}" == osx-* ]]; then
+            # macOS: 不使用单文件发布，保留 .app bundle 结构
+            dotnet publish src/Watchdog.Cli/Watchdog.Cli.csproj \
+              -c Release \
+              -r "${{ matrix.rid }}" \
+              --self-contained true \
+              -o "artifacts/publish/${{ matrix.rid }}/cli" \
+              -p:Version="${{ steps.vars.outputs.version }}" \
+              -p:PublishTrimmed=false
+          else
+            # 其他平台使用单文件发布
+            dotnet publish src/Watchdog.Cli/Watchdog.Cli.csproj \
+              -c Release \
+              -r "${{ matrix.rid }}" \
+              --self-contained true \
+              -o "artifacts/publish/${{ matrix.rid }}/cli" \
+              -p:Version="${{ steps.vars.outputs.version }}" \
+              -p:PublishSingleFile=true \
+              -p:IncludeNativeLibrariesForSelfExtract=true \
+              -p:PublishTrimmed=false
+          fi
 
       - name: Publish App
         shell: bash
         run: |
-          dotnet publish src/Watchdog.App/Watchdog.App.csproj \
-            -c Release \
-            -r "${{ matrix.rid }}" \
-            --self-contained true \
-            -o "artifacts/publish/${{ matrix.rid }}/app" \
-            -p:Version="${{ steps.vars.outputs.version }}" \
-            -p:PublishSingleFile=true \
-            -p:IncludeNativeLibrariesForSelfExtract=true \
-            -p:PublishTrimmed=false
+          if [[ "${{ matrix.rid }}" == osx-* ]]; then
+            # macOS: 不使用单文件发布，保留 .app bundle 结构
+            dotnet publish src/Watchdog.App/Watchdog.App.csproj \
+              -c Release \
+              -r "${{ matrix.rid }}" \
+              --self-contained true \
+              -o "artifacts/publish/${{ matrix.rid }}/app" \
+              -p:Version="${{ steps.vars.outputs.version }}" \
+              -p:PublishTrimmed=false
+          else
+            # 其他平台使用单文件发布
+            dotnet publish src/Watchdog.App/Watchdog.App.csproj \
+              -c Release \
+              -r "${{ matrix.rid }}" \
+              --self-contained true \
+              -o "artifacts/publish/${{ matrix.rid }}/app" \
+              -p:Version="${{ steps.vars.outputs.version }}" \
+              -p:PublishSingleFile=true \
+              -p:IncludeNativeLibrariesForSelfExtract=true \
+              -p:PublishTrimmed=false
+          fi
 
       - name: Package
         shell: bash
