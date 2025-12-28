@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using System.Diagnostics;
 using System.Collections.ObjectModel;
 using System.Text;
+using System.Threading;
 using Watchdog.App.Models;
 using Watchdog.Core.Eams;
 using Watchdog.Core.Notifications;
@@ -16,6 +17,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private static readonly string SettingsPath = Path.Combine(AppPaths.GetAppDataDir(), "settings.json");
 
     private bool _initialized;
+    private bool _restoringSettings;
+    private readonly SemaphoreSlim _persistSettingsLock = new(1, 1);
     private readonly JsonStateStore<AppSettings> _settingsStore = new(SettingsPath, WatchdogAppJsonContext.Default.AppSettings);
 
     [ObservableProperty]
@@ -115,6 +118,7 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
 
         _initialized = true;
+        _restoringSettings = true;
 
         AppSettings? settings = null;
         try
@@ -155,6 +159,7 @@ public partial class MainWindowViewModel : ViewModelBase
             SemesterTermIndex = currentTerm == SemesterTerm.Second ? 1 : 0;
         }
 
+        _restoringSettings = false;
         SyncBrowserOptionFromChannel();
         UpdateProfileDir();
         await LoadProfileStateAsync();
@@ -541,11 +546,13 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(CanChangeAutoRefreshInterval));
         UpdateAutoRefreshTimer();
+        _ = AutoPersistSettingsAsync();
     }
 
     partial void OnAutoRefreshIntervalIndexChanged(int value)
     {
         UpdateAutoRefreshTimer();
+        _ = AutoPersistSettingsAsync();
     }
 
     partial void OnUseAutoSemesterChanged(bool value)
@@ -685,40 +692,63 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task PersistSettingsAsync(bool updateStatus)
     {
-        if (NtfyEnabled && string.IsNullOrWhiteSpace(NtfyTopic))
-            NtfyTopic = NtfyTopicGenerator.Generate();
-
-        var semesterId = string.Empty;
-        if (!UseAutoSemester)
+        await _persistSettingsLock.WaitAsync();
+        try
         {
-            if (!SemesterIdCalculator.TryParseYearRange(SemesterYear, out var startYear, out _))
-                throw new InvalidOperationException("请选择正确的学年范围。");
+            if (NtfyEnabled && string.IsNullOrWhiteSpace(NtfyTopic))
+                NtfyTopic = NtfyTopicGenerator.Generate();
 
-            var term = SemesterTermIndex == 1 ? SemesterTerm.Second : SemesterTerm.First;
-            semesterId = SemesterIdCalculator.Calculate(startYear, term);
+            var semesterId = string.Empty;
+            if (!UseAutoSemester)
+            {
+                if (!SemesterIdCalculator.TryParseYearRange(SemesterYear, out var startYear, out _))
+                    throw new InvalidOperationException("请选择正确的学年范围。");
+
+                var term = SemesterTermIndex == 1 ? SemesterTerm.Second : SemesterTerm.First;
+                semesterId = SemesterIdCalculator.Calculate(startYear, term);
+            }
+
+            var settings = new AppSettings
+            {
+                Account = string.IsNullOrWhiteSpace(Account) ? null : Account.Trim(),
+                SavePassword = SavePassword,
+                Password = SavePassword ? (string.IsNullOrWhiteSpace(Password) ? null : Password) : null,
+                Headless = Headless,
+                AutoRefreshEnabled = AutoRefreshEnabled,
+                AutoRefreshMinutes = GetAutoRefreshMinutes(),
+                NtfyEnabled = NtfyEnabled,
+                NtfyServerBaseUrl = string.IsNullOrWhiteSpace(NtfyServerBaseUrl) ? "https://ntfy.sh" : NtfyServerBaseUrl.Trim(),
+                NtfyTopic = string.IsNullOrWhiteSpace(NtfyTopic) ? null : NtfyTopic.Trim(),
+                UseAutoSemester = UseAutoSemester,
+                SemesterYear = string.IsNullOrWhiteSpace(SemesterYear) ? null : SemesterYear.Trim(),
+                SemesterTerm = SemesterTermIndex == 1 ? 2 : 1,
+                SemesterId = UseAutoSemester ? null : semesterId,
+                Channel = string.IsNullOrWhiteSpace(Channel) ? "chrome" : Channel.Trim(),
+            };
+
+            await _settingsStore.SaveAsync(settings);
+            if (updateStatus)
+                Status = "设置已保存";
         }
-
-        var settings = new AppSettings
+        finally
         {
-            Account = string.IsNullOrWhiteSpace(Account) ? null : Account.Trim(),
-            SavePassword = SavePassword,
-            Password = SavePassword ? (string.IsNullOrWhiteSpace(Password) ? null : Password) : null,
-            Headless = Headless,
-            AutoRefreshEnabled = AutoRefreshEnabled,
-            AutoRefreshMinutes = GetAutoRefreshMinutes(),
-            NtfyEnabled = NtfyEnabled,
-            NtfyServerBaseUrl = string.IsNullOrWhiteSpace(NtfyServerBaseUrl) ? "https://ntfy.sh" : NtfyServerBaseUrl.Trim(),
-            NtfyTopic = string.IsNullOrWhiteSpace(NtfyTopic) ? null : NtfyTopic.Trim(),
-            UseAutoSemester = UseAutoSemester,
-            SemesterYear = string.IsNullOrWhiteSpace(SemesterYear) ? null : SemesterYear.Trim(),
-            SemesterTerm = SemesterTermIndex == 1 ? 2 : 1,
-            SemesterId = UseAutoSemester ? null : semesterId,
-            Channel = string.IsNullOrWhiteSpace(Channel) ? "chrome" : Channel.Trim(),
-        };
+            _persistSettingsLock.Release();
+        }
+    }
 
-        await _settingsStore.SaveAsync(settings);
-        if (updateStatus)
-            Status = "设置已保存";
+    private async Task AutoPersistSettingsAsync()
+    {
+        if (_restoringSettings)
+            return;
+
+        try
+        {
+            await PersistSettingsAsync(updateStatus: false);
+        }
+        catch
+        {
+            // ignore
+        }
     }
 
     private DispatcherTimer? _autoRefreshTimer;
