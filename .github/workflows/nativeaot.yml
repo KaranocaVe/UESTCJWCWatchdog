@@ -76,17 +76,6 @@ jobs:
       - name: Restore
         run: dotnet restore UESTCJWCWatchdog.sln
 
-      - name: Publish CLI (NativeAOT)
-        shell: bash
-        run: |
-          dotnet publish src/Watchdog.Cli/Watchdog.Cli.csproj \
-            -c Release \
-            -r "${{ matrix.rid }}" \
-            --self-contained true \
-            -o "artifacts/publish-aot/${{ matrix.rid }}/cli" \
-            -p:Version="${{ steps.vars.outputs.version }}" \
-            -p:PublishAot=true
-
       - name: Publish App (NativeAOT)
         shell: bash
         run: |
@@ -103,7 +92,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf "artifacts/publish-aot/${{ matrix.rid }}/cli"/*.pdb || true
           rm -rf "artifacts/publish-aot/${{ matrix.rid }}/app"/*.pdb || true
           find "artifacts/publish-aot/${{ matrix.rid }}" -name "*.dsym" -prune -exec rm -rf {} + || true
 
