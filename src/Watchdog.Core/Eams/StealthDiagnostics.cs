@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 namespace Watchdog.Core.Eams;
@@ -94,7 +95,11 @@ public static class StealthDiagnostics
         try
         {
             using var doc = JsonDocument.Parse(json);
-            return JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+                doc.RootElement.WriteTo(writer);
+
+            return Encoding.UTF8.GetString(stream.ToArray());
         }
         catch
         {
@@ -102,4 +107,3 @@ public static class StealthDiagnostics
         }
     }
 }
-
