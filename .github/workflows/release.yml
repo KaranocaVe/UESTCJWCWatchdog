@@ -39,7 +39,7 @@ jobs:
         run: |
           ref="${GITHUB_REF_NAME}"
           if [[ "${GITHUB_REF}" != refs/tags/* ]]; then
-            ref="dev-${GITHUB_SHA::7}"
+            ref="0.0.0-dev-${GITHUB_SHA::7}"
           fi
           echo "tag=${ref}" >> "${GITHUB_OUTPUT}"
           echo "version=${ref#v}" >> "${GITHUB_OUTPUT}"

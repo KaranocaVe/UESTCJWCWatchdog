@@ -69,7 +69,7 @@ jobs:
         run: |
           v="${{ inputs.version }}"
           if [[ -z "${v}" ]]; then
-            v="dev-${GITHUB_SHA::7}"
+            v="0.0.0-dev-${GITHUB_SHA::7}"
           fi
           echo "version=${v}" >> "${GITHUB_OUTPUT}"
 
