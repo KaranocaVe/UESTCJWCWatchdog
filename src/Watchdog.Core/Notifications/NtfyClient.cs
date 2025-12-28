@@ -2,16 +2,19 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Watchdog.Core.Notifications;
 
-public static class NtfyClient
+public static partial class NtfyClient
 {
     private static readonly HttpClient Http = new();
-    private static readonly JsonSerializerOptions JsonOptions = new()
+
+    [JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+    [JsonSerializable(typeof(PublishResponseDto))]
+    private partial class NtfyJsonContext : JsonSerializerContext
     {
-        PropertyNameCaseInsensitive = true,
-    };
+    }
 
     public sealed record PublishResult(
         string Id,
@@ -124,7 +127,7 @@ public static class NtfyClient
         PublishResponseDto? dto;
         try
         {
-            dto = JsonSerializer.Deserialize<PublishResponseDto>(body, JsonOptions);
+            dto = JsonSerializer.Deserialize(body, NtfyJsonContext.Default.PublishResponseDto);
         }
         catch (JsonException ex)
         {
