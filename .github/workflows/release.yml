@@ -78,7 +78,17 @@ jobs:
               -p:PublishTrimmed=false
           fi
 
-      - name: Package
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $rid = "${{ matrix.rid }}"
+          $ver = "${{ steps.vars.outputs.version }}"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "artifacts/publish/$rid/app/*" -DestinationPath "dist/UESTCJWCWatchdog-App-$ver-$rid.zip" -Force
+
+      - name: Package (macOS/Linux)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
@@ -87,10 +97,7 @@ jobs:
           VERSION="${{ steps.vars.outputs.version }}"
           mkdir -p dist
 
-          if [[ "$RID" == win-* ]]; then
-            # Windows: 使用 zip
-            (cd "artifacts/publish/$RID/app" && zip -r "../../../../dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.zip" .)
-          elif [[ "$RID" == osx-* ]]; then
+          if [[ "$RID" == osx-* ]]; then
             # macOS: 创建 .app bundle 结构
 
             # 创建 App .app bundle
@@ -161,11 +168,15 @@ jobs:
                 '</plist>' > "$APP_BUNDLE/Contents/Info.plist"
             fi
 
-            # 复制所有文件到 .app bundle（除了 .app 目录本身）
+            # 复制所有文件到 .app bundle（排除不需要的目录）
             find "artifacts/publish/$RID/app" -maxdepth 1 \
               ! -name "Watchdog.App.app" \
               ! -name "app" \
+              ! -name ".playwright" \
               -exec cp -r {} "$APP_BUNDLE/Contents/MacOS/" \;
+
+            # 移除 .playwright 目录（如果被复制了）
+            rm -rf "$APP_BUNDLE/Contents/MacOS/.playwright"
 
             chmod +x "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
 

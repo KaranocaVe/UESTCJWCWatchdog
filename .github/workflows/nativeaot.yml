@@ -110,8 +110,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Compress-Archive -Path "artifacts/publish-aot/$rid/app/*" -DestinationPath "dist/UESTCJWCWatchdog-App-AOT-$ver-$rid.zip" -Force
 
-      - name: Package (macOS)
-        if: runner.os == 'macOS'
+      - name: Package (macOS/Linux)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -euo pipefail
@@ -119,120 +119,119 @@ jobs:
           VERSION="${{ steps.vars.outputs.version }}"
           mkdir -p dist
 
-          # 创建 App .app bundle
-          APP_BUNDLE="artifacts/publish-aot/$RID/app/Watchdog.App.app"
-          mkdir -p "$APP_BUNDLE/Contents/MacOS"
-          mkdir -p "$APP_BUNDLE/Contents/Resources"
+          if [[ "$RID" == osx-* ]]; then
+            # 创建 App .app bundle
+            APP_BUNDLE="artifacts/publish-aot/$RID/app/Watchdog.App.app"
+            mkdir -p "$APP_BUNDLE/Contents/MacOS"
+            mkdir -p "$APP_BUNDLE/Contents/Resources"
 
-          # 复制应用图标（如果存在）
-          if [[ -f "src/Watchdog.App/Assets/AppIcon.icns" ]]; then
-            cp "src/Watchdog.App/Assets/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
-            HAS_ICON="true"
+            # 复制应用图标（如果存在）
+            if [[ -f "src/Watchdog.App/Assets/AppIcon.icns" ]]; then
+              cp "src/Watchdog.App/Assets/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+              HAS_ICON="true"
+            else
+              HAS_ICON="false"
+            fi
+
+            # 创建 Info.plist
+            if [[ "$HAS_ICON" == "true" ]]; then
+              printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
+                '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+                '<plist version="1.0">' \
+                '<dict>' \
+                '    <key>CFBundleExecutable</key>' \
+                '    <string>Watchdog.App</string>' \
+                '    <key>CFBundleIdentifier</key>' \
+                '    <string>com.uestcjwc.watchdog</string>' \
+                '    <key>CFBundleName</key>' \
+                '    <string>Watchdog.App</string>' \
+                '    <key>CFBundlePackageType</key>' \
+                '    <string>APPL</string>' \
+                '    <key>CFBundleShortVersionString</key>' \
+                '    <string>0.0.0</string>' \
+                '    <key>CFBundleVersion</key>' \
+                '    <string>0.0.0</string>' \
+                '    <key>CFBundleIconFile</key>' \
+                '    <string>AppIcon</string>' \
+                '    <key>LSMinimumSystemVersion</key>' \
+                '    <string>10.15</string>' \
+                '    <key>NSHighResolutionCapable</key>' \
+                '    <true/>' \
+                '    <key>NSPrincipalClass</key>' \
+                '    <string>NSApplication</string>' \
+                '</dict>' \
+                '</plist>' > "$APP_BUNDLE/Contents/Info.plist"
+            else
+              printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
+                '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+                '<plist version="1.0">' \
+                '<dict>' \
+                '    <key>CFBundleExecutable</key>' \
+                '    <string>Watchdog.App</string>' \
+                '    <key>CFBundleIdentifier</key>' \
+                '    <string>com.uestcjwc.watchdog</string>' \
+                '    <key>CFBundleName</key>' \
+                '    <string>Watchdog.App</string>' \
+                '    <key>CFBundlePackageType</key>' \
+                '    <string>APPL</string>' \
+                '    <key>CFBundleShortVersionString</key>' \
+                '    <string>0.0.0</string>' \
+                '    <key>CFBundleVersion</key>' \
+                '    <string>0.0.0</string>' \
+                '    <key>LSMinimumSystemVersion</key>' \
+                '    <string>10.15</string>' \
+                '    <key>NSHighResolutionCapable</key>' \
+                '    <true/>' \
+                '    <key>NSPrincipalClass</key>' \
+                '    <string>NSApplication</string>' \
+                '</dict>' \
+                '</plist>' > "$APP_BUNDLE/Contents/Info.plist"
+            fi
+
+            # 复制所有文件到 .app bundle（排除不需要的目录）
+            find "artifacts/publish-aot/$RID/app" -maxdepth 1 \
+              ! -name "Watchdog.App.app" \
+              ! -name "app" \
+              ! -name ".playwright" \
+              -exec cp -r {} "$APP_BUNDLE/Contents/MacOS/" \;
+
+            # 移除 .playwright 目录（如果被复制了）
+            rm -rf "$APP_BUNDLE/Contents/MacOS/.playwright"
+
+            chmod +x "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
+
+            # 代码签名（如果有证书）
+            if [[ -n "${{ secrets.MACOS_CERTIFICATE }}" ]]; then
+              echo "📝 使用 Apple Developer 证书签名..."
+
+              # 导入证书
+              CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+              echo -n "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode -o "$CERTIFICATE_PATH"
+              security create-keychain -p "" build.keychain-db
+              security default-keychain -s build.keychain-db
+              security unlock-keychain -p "" build.keychain-db
+              security import "$CERTIFICATE_PATH" -k ~/Library/Keychains/build.keychain-db -P "${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+              security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain-db
+
+              # 签名
+              codesign --force --deep --sign "${{ secrets.MACOS_SIGNING_IDENTITY }}" "$APP_BUNDLE"
+
+              # 清理
+              security delete-keychain build.keychain-db
+              rm "$CERTIFICATE_PATH"
+            else
+              echo "⚠️  未找到证书，使用 ad-hoc 签名..."
+              # Ad-hoc 签名
+              codesign --force --deep --sign - "$APP_BUNDLE"
+            fi
+
+            # 只打包 .app bundle 本身
+            tar -C "artifacts/publish-aot/$RID/app" -czf "dist/UESTCJWCWatchdog-App-AOT-${VERSION}-${RID}.tar.gz" Watchdog.App.app
           else
-            HAS_ICON="false"
+            # Linux: 设置可执行权限并使用 tar 打包
+            chmod +x "artifacts/publish-aot/$RID/app/Watchdog.App" || true
+            tar -C "artifacts/publish-aot/$RID/app" -czf "dist/UESTCJWCWatchdog-App-AOT-${VERSION}-${RID}.tar.gz" .
           fi
-
-          # 创建 Info.plist
-          if [[ "$HAS_ICON" == "true" ]]; then
-            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
-              '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
-              '<plist version="1.0">' \
-              '<dict>' \
-              '    <key>CFBundleExecutable</key>' \
-              '    <string>Watchdog.App</string>' \
-              '    <key>CFBundleIdentifier</key>' \
-              '    <string>com.uestcjwc.watchdog</string>' \
-              '    <key>CFBundleName</key>' \
-              '    <string>Watchdog.App</string>' \
-              '    <key>CFBundlePackageType</key>' \
-              '    <string>APPL</string>' \
-              '    <key>CFBundleShortVersionString</key>' \
-              '    <string>0.0.0</string>' \
-              '    <key>CFBundleVersion</key>' \
-              '    <string>0.0.0</string>' \
-              '    <key>CFBundleIconFile</key>' \
-              '    <string>AppIcon</string>' \
-              '    <key>LSMinimumSystemVersion</key>' \
-              '    <string>10.15</string>' \
-              '    <key>NSHighResolutionCapable</key>' \
-              '    <true/>' \
-              '    <key>NSPrincipalClass</key>' \
-              '    <string>NSApplication</string>' \
-              '</dict>' \
-              '</plist>' > "$APP_BUNDLE/Contents/Info.plist"
-          else
-            printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
-              '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
-              '<plist version="1.0">' \
-              '<dict>' \
-              '    <key>CFBundleExecutable</key>' \
-              '    <string>Watchdog.App</string>' \
-              '    <key>CFBundleIdentifier</key>' \
-              '    <string>com.uestcjwc.watchdog</string>' \
-              '    <key>CFBundleName</key>' \
-              '    <string>Watchdog.App</string>' \
-              '    <key>CFBundlePackageType</key>' \
-              '    <string>APPL</string>' \
-              '    <key>CFBundleShortVersionString</key>' \
-              '    <string>0.0.0</string>' \
-              '    <key>CFBundleVersion</key>' \
-              '    <string>0.0.0</string>' \
-              '    <key>LSMinimumSystemVersion</key>' \
-              '    <string>10.15</string>' \
-              '    <key>NSHighResolutionCapable</key>' \
-              '    <true/>' \
-              '    <key>NSPrincipalClass</key>' \
-              '    <string>NSApplication</string>' \
-              '</dict>' \
-              '</plist>' > "$APP_BUNDLE/Contents/Info.plist"
-          fi
-
-          # 复制所有文件到 .app bundle
-          find "artifacts/publish-aot/$RID/app" -maxdepth 1 \
-            ! -name "Watchdog.App.app" \
-            ! -name "app" \
-            -exec cp -r {} "$APP_BUNDLE/Contents/MacOS/" \;
-
-          chmod +x "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
-
-          # 代码签名（如果有证书）
-          if [[ -n "${{ secrets.MACOS_CERTIFICATE }}" ]]; then
-            echo "📝 使用 Apple Developer 证书签名..."
-
-            # 导入证书
-            CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-            echo -n "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode -o "$CERTIFICATE_PATH"
-            security create-keychain -p "" build.keychain-db
-            security default-keychain -s build.keychain-db
-            security unlock-keychain -p "" build.keychain-db
-            security import "$CERTIFICATE_PATH" -k ~/Library/Keychains/build.keychain-db -P "${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
-            security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain-db
-
-            # 签名
-            codesign --force --deep --sign "${{ secrets.MACOS_SIGNING_IDENTITY }}" "$APP_BUNDLE"
-
-            # 清理
-            security delete-keychain build.keychain-db
-            rm "$CERTIFICATE_PATH"
-          else
-            echo "⚠️  未找到证书，使用 ad-hoc 签名..."
-            # Ad-hoc 签名
-            codesign --force --deep --sign - "$APP_BUNDLE"
-          fi
-
-          # 只打包 .app bundle 本身
-          tar -C "artifacts/publish-aot/$RID/app" -czf "dist/UESTCJWCWatchdog-App-AOT-${VERSION}-${RID}.tar.gz" Watchdog.App.app
-
-      - name: Package (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-          RID="${{ matrix.rid }}"
-          VERSION="${{ steps.vars.outputs.version }}"
-          mkdir -p dist
-          chmod +x "artifacts/publish-aot/$RID/app/Watchdog.App" || true
-          tar -C "artifacts/publish-aot/$RID/app" -czf "dist/UESTCJWCWatchdog-App-AOT-${VERSION}-${RID}.tar.gz" .
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
