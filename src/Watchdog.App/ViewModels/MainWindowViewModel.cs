@@ -312,7 +312,7 @@ public partial class MainWindowViewModel : ViewModelBase
                             serverBaseUrl: NtfyServerBaseUrl,
                             topic: NtfyTopic,
                             message: BuildNtfyMessage(snapshot, diff),
-                            title: "成绩更新");
+                            title: BuildNtfyTitle(diff));
                     }
                     catch (Exception ex)
                     {
@@ -334,25 +334,103 @@ public partial class MainWindowViewModel : ViewModelBase
     private string BuildNtfyMessage(GradesSnapshot snapshot, GradeDiff diff)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("检测到成绩更新。");
-        sb.AppendLine($"学期：{EffectiveSemesterText}（id={snapshot.SemesterId}）");
-        sb.AppendLine($"期末：新增 {diff.FinalAdded}，更新 {diff.FinalChanged}");
-        sb.AppendLine($"平时：新增 {diff.UsualAdded}，更新 {diff.UsualChanged}");
-        sb.AppendLine($"时间：{snapshot.FetchedAt:yyyy-MM-dd HH:mm:ss}");
-
         var highlights = diff.Highlights;
-        if (highlights.Count > 0)
+        if (highlights.Count == 0)
         {
-            const int maxLines = 12;
-            sb.AppendLine();
-            foreach (var line in highlights.Take(maxLines))
-                sb.AppendLine(line);
-
-            if (highlights.Count > maxLines)
-                sb.AppendLine($"… 还有 {highlights.Count - maxLines} 项更新");
+            sb.AppendLine($"{EffectiveSemesterText}");
+            sb.AppendLine($"时间：{snapshot.FetchedAt:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"期末：新增 {diff.FinalAdded}，更新 {diff.FinalChanged}；平时：新增 {diff.UsualAdded}，更新 {diff.UsualChanged}");
+            return sb.ToString().Trim();
         }
 
+        sb.AppendLine($"{EffectiveSemesterText}");
+        sb.AppendLine($"时间：{snapshot.FetchedAt:yyyy-MM-dd HH:mm:ss}");
+
+        const int maxLines = 10;
+        foreach (var line in highlights.Take(maxLines))
+            sb.AppendLine(line);
+
+        if (highlights.Count > maxLines)
+            sb.AppendLine($"… 还有 {highlights.Count - maxLines} 项");
+
         return sb.ToString().Trim();
+    }
+
+    private static string BuildNtfyTitle(GradeDiff diff)
+    {
+        var hasAdded = false;
+        var hasChanged = false;
+        foreach (var line in diff.Highlights)
+        {
+            var trimmed = (line ?? string.Empty).TrimStart();
+            if (trimmed.StartsWith("+", StringComparison.Ordinal))
+                hasAdded = true;
+            else if (trimmed.StartsWith("~", StringComparison.Ordinal))
+                hasChanged = true;
+        }
+
+        var prefix = hasAdded && !hasChanged
+            ? "新成绩"
+            : hasChanged && !hasAdded
+                ? "成绩更新"
+                : "成绩变动";
+
+        var courseNames = ExtractCourseNames(diff.Highlights);
+        if (courseNames.Count == 0)
+            return prefix;
+
+        const int maxNames = 4;
+        var shown = courseNames.Take(maxNames).ToArray();
+        var title = $"{prefix}：{string.Join('、', shown)}";
+        if (courseNames.Count > maxNames)
+            title = $"{title}…({courseNames.Count})";
+
+        return title;
+    }
+
+    private static IReadOnlyList<string> ExtractCourseNames(IReadOnlyList<string> highlights)
+    {
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var highlight in highlights)
+        {
+            var name = TryExtractCourseName(highlight);
+            if (string.IsNullOrWhiteSpace(name))
+                continue;
+
+            if (seen.Add(name))
+                result.Add(name);
+        }
+
+        return result;
+    }
+
+    private static string? TryExtractCourseName(string highlight)
+    {
+        if (string.IsNullOrWhiteSpace(highlight))
+            return null;
+
+        var s = highlight.Trim();
+        var idx = s.IndexOf("期末 ", StringComparison.Ordinal);
+        if (idx >= 0)
+            idx += "期末 ".Length;
+        else
+        {
+            idx = s.IndexOf("平时 ", StringComparison.Ordinal);
+            if (idx < 0)
+                return null;
+            idx += "平时 ".Length;
+        }
+
+        var end = s.IndexOf('：', idx);
+        if (end < 0)
+            end = s.IndexOf(':', idx);
+
+        if (end <= idx)
+            return null;
+
+        return s[idx..end].Trim();
     }
 
     private sealed record GradeDiff(
