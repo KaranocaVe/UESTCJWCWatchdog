@@ -1,0 +1,142 @@
+name: NativeAOT (experimental)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version label used in artifact names (e.g. 0.1.0). Leave empty to use dev-<sha>."
+        required: false
+        default: ""
+      include_arm64:
+        description: "Also try win-arm64 + linux-arm64 (may require extra toolchains)."
+        type: boolean
+        required: false
+        default: false
+
+permissions: read-all
+
+jobs:
+  publish:
+    name: Publish AOT (${{ matrix.rid }})
+    if: ${{ !matrix.arm64 || inputs.include_arm64 }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: macos-latest
+            rid: osx-x64
+          - os: macos-latest
+            rid: osx-arm64
+          - os: windows-latest
+            rid: win-arm64
+            arm64: true
+          - os: ubuntu-latest
+            rid: linux-arm64
+            arm64: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install native toolchain (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+
+      - name: Install cross toolchain (Linux arm64)
+        if: runner.os == 'Linux' && matrix.rid == 'linux-arm64' && inputs.include_arm64
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Resolve version
+        id: vars
+        shell: bash
+        run: |
+          v="${{ inputs.version }}"
+          if [[ -z "${v}" ]]; then
+            v="dev-${GITHUB_SHA::7}"
+          fi
+          echo "version=${v}" >> "${GITHUB_OUTPUT}"
+
+      - name: Restore
+        run: dotnet restore UESTCJWCWatchdog.sln
+
+      - name: Publish CLI (NativeAOT)
+        shell: bash
+        run: |
+          dotnet publish src/Watchdog.Cli/Watchdog.Cli.csproj \
+            -c Release \
+            -r "${{ matrix.rid }}" \
+            --self-contained true \
+            -o "artifacts/publish-aot/${{ matrix.rid }}/cli" \
+            -p:Version="${{ steps.vars.outputs.version }}" \
+            -p:PublishAot=true
+
+      - name: Publish App (NativeAOT)
+        shell: bash
+        run: |
+          dotnet publish src/Watchdog.App/Watchdog.App.csproj \
+            -c Release \
+            -r "${{ matrix.rid }}" \
+            --self-contained true \
+            -o "artifacts/publish-aot/${{ matrix.rid }}/app" \
+            -p:Version="${{ steps.vars.outputs.version }}" \
+            -p:PublishAot=true
+
+      - name: Strip debug symbols (non-Windows)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "artifacts/publish-aot/${{ matrix.rid }}/cli"/*.pdb || true
+          rm -rf "artifacts/publish-aot/${{ matrix.rid }}/app"/*.pdb || true
+          find "artifacts/publish-aot/${{ matrix.rid }}" -name "*.dsym" -prune -exec rm -rf {} + || true
+
+      - name: Strip debug symbols (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse -Force "artifacts/publish-aot/${{ matrix.rid }}" -Filter *.pdb | Remove-Item -Force -ErrorAction SilentlyContinue
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $rid = "${{ matrix.rid }}"
+          $ver = "${{ steps.vars.outputs.version }}"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "artifacts/publish-aot/$rid/cli/*" -DestinationPath "dist/UESTCJWCWatchdog-Cli-AOT-$ver-$rid.zip" -Force
+          Compress-Archive -Path "artifacts/publish-aot/$rid/app/*" -DestinationPath "dist/UESTCJWCWatchdog-App-AOT-$ver-$rid.zip" -Force
+
+      - name: Package (macOS/Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          RID="${{ matrix.rid }}"
+          VERSION="${{ steps.vars.outputs.version }}"
+          mkdir -p dist
+          tar -C "artifacts/publish-aot/$RID/cli" -czf "dist/UESTCJWCWatchdog-Cli-AOT-${VERSION}-${RID}.tar.gz" .
+          tar -C "artifacts/publish-aot/$RID/app" -czf "dist/UESTCJWCWatchdog-App-AOT-${VERSION}-${RID}.tar.gz" .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nativeaot-${{ matrix.rid }}
+          path: dist/*
+          if-no-files-found: error
