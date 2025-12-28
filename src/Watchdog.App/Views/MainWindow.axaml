@@ -1,0 +1,163 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Watchdog.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="Watchdog.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="UESTCJWCWatchdog"
+        TransparencyLevelHint="AcrylicBlur" Background="Transparent"
+        Width="1100" Height="720">
+
+    <Design.DataContext>
+        <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,*">
+        <ProgressBar Height="4" IsIndeterminate="True" IsVisible="{Binding IsBusy}"/>
+
+        <TabControl Grid.Row="1">
+            <TabItem Header="查询">
+                <Grid Margin="16" RowDefinitions="Auto,*" RowSpacing="12">
+                    <Border Padding="14" CornerRadius="10" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+                            <Button Content="查询成绩"
+                                    Command="{Binding QueryGradesCommand}"
+                                    IsEnabled="{Binding CanInteract}"/>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding Status}"
+                                       VerticalAlignment="Center"
+                                       TextWrapping="Wrap" />
+
+                            <TextBlock Grid.Row="1" Text="上次更新" Opacity="0.7" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding LastFetchedAtText}" />
+                        </Grid>
+                    </Border>
+
+                    <TabControl Grid.Row="1">
+                        <TabItem Header="期末">
+                            <Border Padding="10" CornerRadius="10" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+                                <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                                    <TextBlock Text="{Binding FinalGrades.Count, StringFormat=共 {0} 门课程}" Opacity="0.7" />
+                                    <DataGrid ItemsSource="{Binding FinalGrades}"
+                                              Grid.Row="1"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              GridLinesVisibility="Horizontal">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="课程" Binding="{Binding CourseName}" Width="*" />
+                                            <DataGridTextColumn Header="总评" Binding="{Binding OverallScore}" Width="Auto" />
+                                            <DataGridTextColumn Header="最终" Binding="{Binding FinalScore}" Width="Auto" />
+                                            <DataGridTextColumn Header="绩点" Binding="{Binding Gpa}" Width="Auto" />
+                                            <DataGridTextColumn Header="学分" Binding="{Binding Credit}" Width="Auto" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Border>
+                        </TabItem>
+
+                        <TabItem Header="平时">
+                            <Border Padding="10" CornerRadius="10" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+                                <Grid RowDefinitions="Auto,*" RowSpacing="8">
+                                    <TextBlock Text="{Binding UsualGrades.Count, StringFormat=共 {0} 门课程}" Opacity="0.7" />
+                                    <DataGrid ItemsSource="{Binding UsualGrades}"
+                                              Grid.Row="1"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              GridLinesVisibility="Horizontal">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="课程" Binding="{Binding CourseName}" Width="*" />
+                                            <DataGridTextColumn Header="平时" Binding="{Binding UsualScore}" Width="Auto" />
+                                            <DataGridTextColumn Header="学分" Binding="{Binding Credit}" Width="Auto" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Border>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="设置">
+                <ScrollViewer>
+                    <StackPanel Margin="16" Spacing="14" Width="560">
+                        <Border Padding="14" CornerRadius="10" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="账号" Opacity="0.7" />
+                                <TextBox Text="{Binding Account}" Watermark="学号/工号" IsEnabled="{Binding CanInteract}" />
+
+                                <TextBlock Text="密码（可选）" Opacity="0.7" />
+                                <TextBox Text="{Binding Password}" PasswordChar="•" Watermark="用于会话失效时自动重登" IsEnabled="{Binding CanInteract}" />
+                                <TextBlock Text="提示：不保存密码也能查询（只要登录态仍有效）。会话失效时需要重新输入密码。"
+                                           Opacity="0.7"
+                                           FontSize="12"
+                                           TextWrapping="Wrap" />
+
+                                <CheckBox Content="记住密码（仅保存在本机；建议仅在个人设备开启）" IsChecked="{Binding SavePassword}" IsEnabled="{Binding CanInteract}" />
+
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button Content="保存设置" Command="{Binding SaveSettingsCommand}" IsEnabled="{Binding CanInteract}" />
+                                    <Button Content="清除登录状态" Command="{Binding ResetSessionCommand}" IsEnabled="{Binding CanInteract}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Padding="14" CornerRadius="10" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+                            <StackPanel Spacing="12">
+                                <TextBlock Text="高级选项" FontSize="16" />
+
+                                <CheckBox Content="后台运行（不显示浏览器）" IsChecked="{Binding Headless}" IsEnabled="{Binding CanInteract}" />
+
+                                <TextBlock Text="学期" Opacity="0.7" />
+                                <CheckBox Content="自动选择当前学期" IsChecked="{Binding UseAutoSemester}" IsEnabled="{Binding CanInteract}" />
+                                <TextBlock Text="{Binding EffectiveSemesterText}" Opacity="0.7" FontSize="12" TextWrapping="Wrap"/>
+
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto">
+                                    <StackPanel Grid.Column="0" Spacing="6">
+                                        <TextBlock Text="学年" Opacity="0.7" />
+                                        <ComboBox ItemsSource="{Binding AvailableSemesterYears}"
+                                                  SelectedItem="{Binding SemesterYear, Mode=TwoWay}"
+                                                  IsEnabled="{Binding CanChooseSemester}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="6">
+                                        <TextBlock Text="学期" Opacity="0.7" />
+                                        <ComboBox ItemsSource="{Binding AvailableSemesterTerms}"
+                                                  SelectedIndex="{Binding SemesterTermIndex, Mode=TwoWay}"
+                                                  IsEnabled="{Binding CanChooseSemester}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <TextBlock Text="浏览器" Opacity="0.7" />
+                                <ComboBox SelectedIndex="{Binding BrowserOptionIndex, Mode=TwoWay}" IsEnabled="{Binding CanInteract}">
+                                    <ComboBoxItem Content="系统 Chrome（推荐）" />
+                                    <ComboBoxItem Content="内置 Chromium" />
+                                </ComboBox>
+
+                                <TextBlock Text="自动刷新" Opacity="0.7" />
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="8">
+                                    <CheckBox Content="开启自动刷新" IsChecked="{Binding AutoRefreshEnabled}" IsEnabled="{Binding CanInteract}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding NextAutoRefreshText, StringFormat=下次刷新：{0}}" Opacity="0.7" VerticalAlignment="Center" />
+
+	                                    <ComboBox Grid.Row="1"
+	                                              ItemsSource="{Binding AutoRefreshIntervalOptions}"
+	                                              SelectedIndex="{Binding AutoRefreshIntervalIndex, Mode=TwoWay}"
+	                                              IsEnabled="{Binding CanChangeAutoRefreshInterval}" />
+	                                </Grid>
+
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button Content="导入 .env（开发用）" Command="{Binding ImportFromEnvCommand}" IsEnabled="{Binding CanInteract}" />
+                                    <Button Content="打开数据目录" Command="{Binding OpenProfileDirCommand}" IsEnabled="{Binding CanInteract}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </Grid>
+
+</Window>
