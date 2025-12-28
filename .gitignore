@@ -1,0 +1,41 @@
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Env files (keep secrets out of git)
+.env
+.env.*
+!.env.example
+
+# IDEs / editors
+.vs/
+.vscode/
+.idea/
+.fleet/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.swp
+*.*~
+
+# .NET build output
+**/bin/
+**/obj/
+**/TestResults/
+artifacts/
+*.nupkg
+*.snupkg
+
+# Logs / dumps
+*.log
+*.dmp
+
+# Playwright/Patchright persistent profiles + local auth/state
+**/user-data*/
+**/state.json
+**/storage-state.json
+
+# Local scratch output
+/debug*/
+/tmp/
