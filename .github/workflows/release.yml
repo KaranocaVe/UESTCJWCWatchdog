@@ -53,9 +53,6 @@ jobs:
       - name: Restore
         run: dotnet restore UESTCJWCWatchdog.sln
 
-      - name: Install Playwright browsers
-        run: dotnet exec patchright install chromium
-
       - name: Publish App
         shell: bash
         run: |
