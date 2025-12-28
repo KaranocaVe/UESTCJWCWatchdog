@@ -22,3 +22,14 @@ And checksum files:
 
 - `sha256sums-<rid>.txt` (per target)
 - `SHA256SUMS.txt` (combined)
+
+## NativeAOT (experimental)
+
+There is also a manual workflow that tries to build NativeAOT binaries:
+
+- GitHub Actions: `NativeAOT (experimental)`
+- Outputs: `*-AOT-<version>-<rid>.(zip|tar.gz)`
+
+Notes:
+- NativeAOT enables trimming; some dependencies may emit warnings (and might require extra work to be fully AOT-safe).
+- Cross-OS AOT compilation is not supported, so this workflow builds on Windows/macOS/Linux runners.
