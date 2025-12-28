@@ -195,6 +195,31 @@ jobs:
 
           chmod +x "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
 
+          # 代码签名（如果有证书）
+          if [[ -n "${{ secrets.MACOS_CERTIFICATE }}" ]]; then
+            echo "📝 使用 Apple Developer 证书签名..."
+
+            # 导入证书
+            CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+            echo -n "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode -o "$CERTIFICATE_PATH"
+            security create-keychain -p "" build.keychain-db
+            security default-keychain -s build.keychain-db
+            security unlock-keychain -p "" build.keychain-db
+            security import "$CERTIFICATE_PATH" -k ~/Library/Keychains/build.keychain-db -P "${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain-db
+
+            # 签名
+            codesign --force --deep --sign "${{ secrets.MACOS_SIGNING_IDENTITY }}" "$APP_BUNDLE"
+
+            # 清理
+            security delete-keychain build.keychain-db
+            rm "$CERTIFICATE_PATH"
+          else
+            echo "⚠️  未找到证书，使用 ad-hoc 签名..."
+            # Ad-hoc 签名
+            codesign --force --deep --sign - "$APP_BUNDLE"
+          fi
+
           # 只打包 .app bundle 本身
           tar -C "artifacts/publish-aot/$RID/app" -czf "dist/UESTCJWCWatchdog-App-AOT-${VERSION}-${RID}.tar.gz" Watchdog.App.app
 
