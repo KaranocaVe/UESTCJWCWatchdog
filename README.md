@@ -7,6 +7,9 @@
 
 > 声明：本项目为第三方工具，与学校官方无关；请遵守学校相关规定与平台条款，自行承担使用风险。
 
+<img width="1082" height="748" alt="image" src="https://github.com/user-attachments/assets/04ab2acc-9cae-4a94-8838-68da07b17946" />
+
+
 ## 功能概览
 
 - **成绩查询**：查询“期末/总评”和“平时”两类成绩，并用表格展示。
