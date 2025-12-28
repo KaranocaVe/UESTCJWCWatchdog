@@ -57,6 +57,30 @@
           "System.Text.Encodings.Web": "6.0.0"
         }
       }
+    },
+    "net8.0/win-x64": {
+      "Microsoft.DotNet.ILCompiler": {
+        "type": "Direct",
+        "requested": "[8.0.22, )",
+        "resolved": "8.0.22",
+        "contentHash": "4SDEQzYp3d9yVu0iQRFMV4HJCTjDvCt2AclSxMGXZSva5VrdoatwDg5nQVSD42ZuzBY5Y+BzgaexNbwb0/3gHw==",
+        "dependencies": {
+          "runtime.win-x64.Microsoft.DotNet.ILCompiler": "8.0.22"
+        }
+      },
+      "runtime.win-x64.Microsoft.DotNet.ILCompiler": {
+        "type": "Transitive",
+        "resolved": "8.0.22",
+        "contentHash": "SJwosgfl5Px/3GNsFOOJ7EBykMprLv00ghH/miyGse/88nHVBezJujBreHE+Lo2mbybhI6TspLYwJ/FkP5cl6w=="
+      },
+      "System.Text.Encodings.Web": {
+        "type": "Transitive",
+        "resolved": "6.0.0",
+        "contentHash": "Vg8eB5Tawm1IFqj4TVK1czJX89rhFxJo9ELqc/Eiq0eXy13RK00eubyU6TJE6y+GQXjyV5gSfiewDUZjQgSE0w==",
+        "dependencies": {
+          "System.Runtime.CompilerServices.Unsafe": "6.0.0"
+        }
+      }
     }
   }
 }

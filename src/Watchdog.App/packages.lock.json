@@ -291,6 +291,76 @@
           "Patchright": "[1.56.0, )"
         }
       }
+    },
+    "net8.0/osx-arm64": {
+      "Microsoft.DotNet.ILCompiler": {
+        "type": "Direct",
+        "requested": "[8.0.22, )",
+        "resolved": "8.0.22",
+        "contentHash": "4SDEQzYp3d9yVu0iQRFMV4HJCTjDvCt2AclSxMGXZSva5VrdoatwDg5nQVSD42ZuzBY5Y+BzgaexNbwb0/3gHw==",
+        "dependencies": {
+          "runtime.osx-arm64.Microsoft.DotNet.ILCompiler": "8.0.22"
+        }
+      },
+      "Avalonia.Angle.Windows.Natives": {
+        "type": "Transitive",
+        "resolved": "2.1.25547.20250602",
+        "contentHash": "ZL0VLc4s9rvNNFt19Pxm5UNAkmKNylugAwJPX9ulXZ6JWs/l6XZihPWWTyezaoNOVyEPU8YbURtW7XMAtqXH5A=="
+      },
+      "Avalonia.Native": {
+        "type": "Transitive",
+        "resolved": "11.3.2",
+        "contentHash": "dv3PVUcClxeDlNSoBjTdNuRYXdbzT3BgtpjEX/fv3pVreKfbh39wWQ+n4ecGh0FUKIlcj0X8BEaQ83t5eRsLnA==",
+        "dependencies": {
+          "Avalonia": "11.3.2"
+        }
+      },
+      "HarfBuzzSharp.NativeAssets.Linux": {
+        "type": "Transitive",
+        "resolved": "8.3.1.1",
+        "contentHash": "3EZ1mpIiKWRLL5hUYA82ZHteeDIVaEA/Z0rA/wU6tjx6crcAkJnBPwDXZugBSfo8+J3EznvRJf49uMsqYfKrHg=="
+      },
+      "HarfBuzzSharp.NativeAssets.macOS": {
+        "type": "Transitive",
+        "resolved": "8.3.1.1",
+        "contentHash": "jbtCsgftcaFLCA13tVKo5iWdElJScrulLTKJre36O4YQTIlwDtPPqhRZNk+Y0vv4D1gxbscasGRucUDfS44ofQ=="
+      },
+      "HarfBuzzSharp.NativeAssets.Win32": {
+        "type": "Transitive",
+        "resolved": "8.3.1.1",
+        "contentHash": "UsJtQsfAJoFDZrXc4hCUfRPMqccfKZ0iumJ/upcUjz/cmsTgVFGNEL5yaJWmkqsuFYdMWbj/En5/kS4PFl9hBA=="
+      },
+      "runtime.osx-arm64.Microsoft.DotNet.ILCompiler": {
+        "type": "Transitive",
+        "resolved": "8.0.22",
+        "contentHash": "r2tIc9KtBSU353f7pHXG9HdVjxsB52Iklo0Xl985k5Xt7C6sWMVTphNarktU9kNUmrawhyXG+opW9SCUbS/40Q=="
+      },
+      "SkiaSharp.NativeAssets.Linux": {
+        "type": "Transitive",
+        "resolved": "2.88.9",
+        "contentHash": "cWSaJKVPWAaT/WIn9c8T5uT/l4ETwHxNJTkEOtNKjphNo8AW6TF9O32aRkxqw3l8GUdUo66Bu7EiqtFh/XG0Zg==",
+        "dependencies": {
+          "SkiaSharp": "2.88.9"
+        }
+      },
+      "SkiaSharp.NativeAssets.macOS": {
+        "type": "Transitive",
+        "resolved": "2.88.9",
+        "contentHash": "Nv5spmKc4505Ep7oUoJ5vp3KweFpeNqxpyGDWyeEPTX2uR6S6syXIm3gj75dM0YJz7NPvcix48mR5laqs8dPuA=="
+      },
+      "SkiaSharp.NativeAssets.Win32": {
+        "type": "Transitive",
+        "resolved": "2.88.9",
+        "contentHash": "wb2kYgU7iy84nQLYZwMeJXixvK++GoIuECjU4ECaUKNuflyRlJKyiRhN1MAHswvlvzuvkrjRWlK0Za6+kYQK7w=="
+      },
+      "System.Text.Encodings.Web": {
+        "type": "Transitive",
+        "resolved": "6.0.0",
+        "contentHash": "Vg8eB5Tawm1IFqj4TVK1czJX89rhFxJo9ELqc/Eiq0eXy13RK00eubyU6TJE6y+GQXjyV5gSfiewDUZjQgSE0w==",
+        "dependencies": {
+          "System.Runtime.CompilerServices.Unsafe": "6.0.0"
+        }
+      }
     }
   }
 }
