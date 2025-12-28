@@ -107,9 +107,17 @@ jobs:
           mkdir -p dist
 
           if [[ "$RID" == win-* ]]; then
+            # Windows: 使用 zip
             (cd "artifacts/publish/$RID/cli" && zip -r "../../../../dist/UESTCJWCWatchdog-Cli-${VERSION}-${RID}.zip" .)
             (cd "artifacts/publish/$RID/app" && zip -r "../../../../dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.zip" .)
+          elif [[ "$RID" == osx-* ]]; then
+            # macOS: 设置 .app bundle 权限并使用 tar 打包
+            chmod +x "artifacts/publish/$RID/cli/Watchdog.Cli" || true
+            find "artifacts/publish/$RID/app" -name "*.app" -exec chmod +x {}/Contents/MacOS/* \; || true
+            tar -C "artifacts/publish/$RID/cli" -czf "dist/UESTCJWCWatchdog-Cli-${VERSION}-${RID}.tar.gz" .
+            tar -C "artifacts/publish/$RID/app" -czf "dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.tar.gz" .
           else
+            # Linux: 设置可执行权限并使用 tar 打包
             chmod +x "artifacts/publish/$RID/cli/Watchdog.Cli" || true
             chmod +x "artifacts/publish/$RID/app/Watchdog.App" || true
             tar -C "artifacts/publish/$RID/cli" -czf "dist/UESTCJWCWatchdog-Cli-${VERSION}-${RID}.tar.gz" .
