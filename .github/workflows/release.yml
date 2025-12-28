@@ -136,8 +136,6 @@ jobs:
             tar -C "artifacts/publish/$RID/app" -czf "dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.tar.gz" .
           fi
 
-          (cd dist && sha256sum * > "sha256sums-${RID}.txt")
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -163,7 +161,8 @@ jobs:
         run: |
           set -euo pipefail
           cd dist
-          sha256sum * > SHA256SUMS.txt
+          # 只为实际发布包生成校验和，排除之前的校验和文件
+          find . -maxdepth 1 -type f ! -name "sha256sums-*.txt" -exec sha256sum {} \; | sort -k2 > SHA256SUMS.txt
 
       - name: Create release
         uses: softprops/action-gh-release@v2
