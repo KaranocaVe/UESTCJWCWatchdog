@@ -53,6 +53,9 @@ jobs:
       - name: Restore
         run: dotnet restore UESTCJWCWatchdog.sln
 
+      - name: Install Playwright browsers
+        run: dotnet exec patchright install chromium
+
       - name: Publish App
         shell: bash
         run: |
@@ -168,15 +171,11 @@ jobs:
                 '</plist>' > "$APP_BUNDLE/Contents/Info.plist"
             fi
 
-            # 复制所有文件到 .app bundle（排除不需要的目录）
+            # 复制所有文件到 .app bundle
             find "artifacts/publish/$RID/app" -maxdepth 1 \
               ! -name "Watchdog.App.app" \
               ! -name "app" \
-              ! -name ".playwright" \
               -exec cp -r {} "$APP_BUNDLE/Contents/MacOS/" \;
-
-            # 移除 .playwright 目录（如果被复制了）
-            rm -rf "$APP_BUNDLE/Contents/MacOS/.playwright"
 
             chmod +x "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
 
@@ -193,16 +192,18 @@ jobs:
               security import "$CERTIFICATE_PATH" -k ~/Library/Keychains/build.keychain-db -P "${{ secrets.MACOS_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
               security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain-db
 
-              # 签名
-              codesign --force --deep --sign "${{ secrets.MACOS_SIGNING_IDENTITY }}" "$APP_BUNDLE"
+              # 签名时排除 .playwright 目录
+              codesign --force --sign "${{ secrets.MACOS_SIGNING_IDENTITY }}" "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
+              find "$APP_BUNDLE/Contents/MacOS" -name "*.dylib" -exec codesign --force --sign "${{ secrets.MACOS_SIGNING_IDENTITY }}" {} \;
 
               # 清理
               security delete-keychain build.keychain-db
               rm "$CERTIFICATE_PATH"
             else
               echo "⚠️  未找到证书，使用 ad-hoc 签名..."
-              # Ad-hoc 签名（仍然会被 Gatekeeper 拦截，但比没有签名好）
-              codesign --force --deep --sign - "$APP_BUNDLE"
+              # Ad-hoc 签名时排除 .playwright 目录
+              codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
+              find "$APP_BUNDLE/Contents/MacOS" -name "*.dylib" -exec codesign --force --sign - {} \; 2>/dev/null || true
             fi
 
             # 只打包 .app bundle 本身
