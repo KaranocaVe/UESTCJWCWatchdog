@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version label used in artifact names (e.g. 0.1.0). Leave empty to use dev-<sha>."
+        description: "Version label used in artifact names (e.g. 0.1.0). Leave empty to use 0.0.0-dev-<sha>."
         required: false
         default: ""
       include_arm64:
