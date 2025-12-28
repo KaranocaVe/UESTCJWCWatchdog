@@ -125,32 +125,30 @@ jobs:
           mkdir -p "$APP_BUNDLE/Contents/Resources"
 
           # 创建 Info.plist
-          cat > "$APP_BUNDLE/Contents/Info.plist" << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleExecutable</key>
-    <string>Watchdog.App</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.uestcjwc.watchdog</string>
-    <key>CFBundleName</key>
-    <string>Watchdog.App</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>0.0.0</string>
-    <key>CFBundleVersion</key>
-    <string>0.0.0</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>10.15</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
-</dict>
-</plist>
-EOF
+          printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+            '<plist version="1.0">' \
+            '<dict>' \
+            '    <key>CFBundleExecutable</key>' \
+            '    <string>Watchdog.App</string>' \
+            '    <key>CFBundleIdentifier</key>' \
+            '    <string>com.uestcjwc.watchdog</string>' \
+            '    <key>CFBundleName</key>' \
+            '    <string>Watchdog.App</string>' \
+            '    <key>CFBundlePackageType</key>' \
+            '    <string>APPL</string>' \
+            '    <key>CFBundleShortVersionString</key>' \
+            '    <string>0.0.0</string>' \
+            '    <key>CFBundleVersion</key>' \
+            '    <string>0.0.0</string>' \
+            '    <key>LSMinimumSystemVersion</key>' \
+            '    <string>10.15</string>' \
+            '    <key>NSHighResolutionCapable</key>' \
+            '    <true/>' \
+            '    <key>NSPrincipalClass</key>' \
+            '    <string>NSApplication</string>' \
+            '</dict>' \
+            '</plist>' > "$APP_BUNDLE/Contents/Info.plist"
 
           # 复制所有文件到 .app bundle
           find "artifacts/publish-aot/$RID/app" -maxdepth 1 \
