@@ -83,8 +83,8 @@ jobs:
           mkdir -p dist
 
           if [[ "$RID" == win-* ]]; then
-            (cd "artifacts/publish/$RID/cli" && zip -r "../../../dist/UESTCJWCWatchdog-Cli-${VERSION}-${RID}.zip" .)
-            (cd "artifacts/publish/$RID/app" && zip -r "../../../dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.zip" .)
+            (cd "artifacts/publish/$RID/cli" && zip -r "../../../../dist/UESTCJWCWatchdog-Cli-${VERSION}-${RID}.zip" .)
+            (cd "artifacts/publish/$RID/app" && zip -r "../../../../dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.zip" .)
           else
             chmod +x "artifacts/publish/$RID/cli/Watchdog.Cli" || true
             chmod +x "artifacts/publish/$RID/app/Watchdog.App" || true
