@@ -964,11 +964,23 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (OperatingSystem.IsMacOS())
         {
-            Process.Start("open", path);
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "open",
+                UseShellExecute = false,
+            };
+            startInfo.ArgumentList.Add(path);
+            Process.Start(startInfo);
             return;
         }
 
-        Process.Start("xdg-open", path);
+        var linuxStartInfo = new ProcessStartInfo
+        {
+            FileName = "xdg-open",
+            UseShellExecute = false,
+        };
+        linuxStartInfo.ArgumentList.Add(path);
+        Process.Start(linuxStartInfo);
     }
 
     private static void OpenUrl(string url)
@@ -985,10 +997,22 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (OperatingSystem.IsMacOS())
         {
-            Process.Start("open", url);
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "open",
+                UseShellExecute = false,
+            };
+            startInfo.ArgumentList.Add(url);
+            Process.Start(startInfo);
             return;
         }
 
-        Process.Start("xdg-open", url);
+        var linuxStartInfo = new ProcessStartInfo
+        {
+            FileName = "xdg-open",
+            UseShellExecute = false,
+        };
+        linuxStartInfo.ArgumentList.Add(url);
+        Process.Start(linuxStartInfo);
     }
 }
