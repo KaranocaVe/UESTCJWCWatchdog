@@ -3,8 +3,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Diagnostics;
 using System.Collections.ObjectModel;
+using System.Text;
 using Watchdog.App.Models;
 using Watchdog.Core.Eams;
+using Watchdog.Core.Notifications;
 using Watchdog.Core.Storage;
 
 namespace Watchdog.App.ViewModels;
@@ -76,6 +78,18 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty]
     private string _nextAutoRefreshText = "已关闭";
+
+    [ObservableProperty]
+    private bool _ntfyEnabled = true;
+
+    [ObservableProperty]
+    private string _ntfyServerBaseUrl = "https://ntfy.sh";
+
+    [ObservableProperty]
+    private string _ntfyTopic = string.Empty;
+
+    public string NtfySubscribeUrl =>
+        string.IsNullOrWhiteSpace(NtfyTopic) ? string.Empty : $"{NtfyServerBaseUrl.TrimEnd('/')}/{NtfyTopic}";
 
     [ObservableProperty]
     private string _semesterId = string.Empty;

@@ -13,6 +13,10 @@ public sealed class AppSettings
     /// <summary>Allowed values: 30, 60, 120.</summary>
     public int AutoRefreshMinutes { get; set; } = 60;
 
+    public bool NtfyEnabled { get; set; } = true;
+    public string NtfyServerBaseUrl { get; set; } = "https://ntfy.sh";
+    public string? NtfyTopic { get; set; }
+
     /// <summary>
     /// When null (old settings.json), the app infers this from <see cref="SemesterId"/> presence.
     /// </summary>
