@@ -136,6 +136,9 @@ public partial class MainWindowViewModel : ViewModelBase
             Headless = settings.Headless;
             AutoRefreshEnabled = settings.AutoRefreshEnabled;
             AutoRefreshIntervalIndex = NormalizeAutoRefreshIntervalIndex(settings.AutoRefreshMinutes);
+            NtfyEnabled = settings.NtfyEnabled;
+            NtfyServerBaseUrl = string.IsNullOrWhiteSpace(settings.NtfyServerBaseUrl) ? "https://ntfy.sh" : settings.NtfyServerBaseUrl.Trim();
+            NtfyTopic = settings.NtfyTopic ?? string.Empty;
 
             UseAutoSemester = settings.UseAutoSemester ?? string.IsNullOrWhiteSpace(settings.SemesterId);
 
@@ -155,6 +158,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SyncBrowserOptionFromChannel();
         UpdateProfileDir();
         await LoadProfileStateAsync();
+        await EnsureNtfyTopicAsync(persistIfGenerated: true);
         UpdateAutoRefreshTimer();
     }
 
@@ -185,6 +189,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         try
         {
+            await EnsureNtfyTopicAsync(persistIfGenerated: false);
             await PersistSettingsAsync(updateStatus: true);
         }
         catch (Exception ex)
@@ -295,6 +300,26 @@ public partial class MainWindowViewModel : ViewModelBase
             });
 
             await PersistSettingsAsync(updateStatus: false);
+
+            if (diff.TotalChangedOrAdded > 0 && NtfyEnabled)
+            {
+                await EnsureNtfyTopicAsync(persistIfGenerated: true);
+                if (!string.IsNullOrWhiteSpace(NtfyTopic))
+                {
+                    try
+                    {
+                        await NtfyClient.SendAsync(
+                            serverBaseUrl: NtfyServerBaseUrl,
+                            topic: NtfyTopic,
+                            message: BuildNtfyMessage(snapshot, diff),
+                            title: "成绩更新");
+                    }
+                    catch (Exception ex)
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(() => Status = $"{Status}（推送失败：{ex.Message}）");
+                    }
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -306,7 +331,36 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private sealed record GradeDiff(int FinalAdded, int FinalChanged, int UsualAdded, int UsualChanged)
+    private string BuildNtfyMessage(GradesSnapshot snapshot, GradeDiff diff)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("检测到成绩更新。");
+        sb.AppendLine($"学期：{EffectiveSemesterText}（id={snapshot.SemesterId}）");
+        sb.AppendLine($"期末：新增 {diff.FinalAdded}，更新 {diff.FinalChanged}");
+        sb.AppendLine($"平时：新增 {diff.UsualAdded}，更新 {diff.UsualChanged}");
+        sb.AppendLine($"时间：{snapshot.FetchedAt:yyyy-MM-dd HH:mm:ss}");
+
+        var highlights = diff.Highlights;
+        if (highlights.Count > 0)
+        {
+            const int maxLines = 12;
+            sb.AppendLine();
+            foreach (var line in highlights.Take(maxLines))
+                sb.AppendLine(line);
+
+            if (highlights.Count > maxLines)
+                sb.AppendLine($"… 还有 {highlights.Count - maxLines} 项更新");
+        }
+
+        return sb.ToString().Trim();
+    }
+
+    private sealed record GradeDiff(
+        int FinalAdded,
+        int FinalChanged,
+        int UsualAdded,
+        int UsualChanged,
+        IReadOnlyList<string> Highlights)
     {
         public int TotalChangedOrAdded => FinalAdded + FinalChanged + UsualAdded + UsualChanged;
     }
@@ -322,6 +376,24 @@ public partial class MainWindowViewModel : ViewModelBase
         var oldFinalMap = oldFinal.ToDictionary(g => Key(g.CourseCode, g.CourseId), g => g);
         var oldUsualMap = oldUsual.ToDictionary(g => Key(g.CourseCode, g.CourseId), g => g);
 
+        static string FinalScoreText(FinalGrade g)
+        {
+            if (!string.IsNullOrWhiteSpace(g.FinalScore))
+                return g.FinalScore.Trim();
+            if (!string.IsNullOrWhiteSpace(g.OverallScore))
+                return g.OverallScore.Trim();
+            if (!string.IsNullOrWhiteSpace(g.FinalExamScore))
+                return g.FinalExamScore.Trim();
+            return "无";
+        }
+
+        static string UsualScoreText(UsualGrade g)
+        {
+            return string.IsNullOrWhiteSpace(g.UsualScore) ? "无" : g.UsualScore.Trim();
+        }
+
+        var highlights = new List<string>();
+
         var finalAdded = 0;
         var finalChanged = 0;
         foreach (var g in newFinal)
@@ -329,15 +401,20 @@ public partial class MainWindowViewModel : ViewModelBase
             if (!oldFinalMap.TryGetValue(Key(g.CourseCode, g.CourseId), out var old))
             {
                 finalAdded++;
+                highlights.Add($"+ 期末 {g.CourseName}：{FinalScoreText(g)}");
                 continue;
             }
 
-            if (!string.Equals(old.FinalScore, g.FinalScore, StringComparison.Ordinal) ||
-                !string.Equals(old.OverallScore, g.OverallScore, StringComparison.Ordinal) ||
-                !string.Equals(old.Gpa, g.Gpa, StringComparison.Ordinal) ||
-                !string.Equals(old.FinalExamScore, g.FinalExamScore, StringComparison.Ordinal))
+            var oldText = FinalScoreText(old);
+            var newText = FinalScoreText(g);
+            var changed =
+                !string.Equals(oldText, newText, StringComparison.Ordinal) ||
+                !string.Equals(old.Gpa, g.Gpa, StringComparison.Ordinal);
+
+            if (changed)
             {
                 finalChanged++;
+                highlights.Add($"~ 期末 {g.CourseName}：{oldText} → {newText}");
             }
         }
 
@@ -348,14 +425,20 @@ public partial class MainWindowViewModel : ViewModelBase
             if (!oldUsualMap.TryGetValue(Key(g.CourseCode, g.CourseId), out var old))
             {
                 usualAdded++;
+                highlights.Add($"+ 平时 {g.CourseName}：{UsualScoreText(g)}");
                 continue;
             }
 
-            if (!string.Equals(old.UsualScore, g.UsualScore, StringComparison.Ordinal))
+            var oldText = UsualScoreText(old);
+            var newText = UsualScoreText(g);
+            if (!string.Equals(oldText, newText, StringComparison.Ordinal))
+            {
                 usualChanged++;
+                highlights.Add($"~ 平时 {g.CourseName}：{oldText} → {newText}");
+            }
         }
 
-        return new GradeDiff(finalAdded, finalChanged, usualAdded, usualChanged);
+        return new GradeDiff(finalAdded, finalChanged, usualAdded, usualChanged, highlights);
     }
 
     private void UpdateProfileDir()
@@ -524,6 +607,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task PersistSettingsAsync(bool updateStatus)
     {
+        if (NtfyEnabled && string.IsNullOrWhiteSpace(NtfyTopic))
+            NtfyTopic = NtfyTopicGenerator.Generate();
+
         var semesterId = string.Empty;
         if (!UseAutoSemester)
         {
@@ -542,6 +628,9 @@ public partial class MainWindowViewModel : ViewModelBase
             Headless = Headless,
             AutoRefreshEnabled = AutoRefreshEnabled,
             AutoRefreshMinutes = GetAutoRefreshMinutes(),
+            NtfyEnabled = NtfyEnabled,
+            NtfyServerBaseUrl = string.IsNullOrWhiteSpace(NtfyServerBaseUrl) ? "https://ntfy.sh" : NtfyServerBaseUrl.Trim(),
+            NtfyTopic = string.IsNullOrWhiteSpace(NtfyTopic) ? null : NtfyTopic.Trim(),
             UseAutoSemester = UseAutoSemester,
             SemesterYear = string.IsNullOrWhiteSpace(SemesterYear) ? null : SemesterYear.Trim(),
             SemesterTerm = SemesterTermIndex == 1 ? 2 : 1,
@@ -613,6 +702,107 @@ public partial class MainWindowViewModel : ViewModelBase
         };
     }
 
+    private async Task EnsureNtfyTopicAsync(bool persistIfGenerated)
+    {
+        if (!NtfyEnabled)
+            return;
+
+        if (!string.IsNullOrWhiteSpace(NtfyTopic))
+            return;
+
+        NtfyTopic = NtfyTopicGenerator.Generate();
+        OnPropertyChanged(nameof(NtfySubscribeUrl));
+
+        if (persistIfGenerated)
+            await PersistSettingsAsync(updateStatus: false);
+    }
+
+    partial void OnNtfyTopicChanged(string value)
+    {
+        OnPropertyChanged(nameof(NtfySubscribeUrl));
+    }
+
+    partial void OnNtfyServerBaseUrlChanged(string value)
+    {
+        OnPropertyChanged(nameof(NtfySubscribeUrl));
+    }
+
+    partial void OnNtfyEnabledChanged(bool value)
+    {
+        if (value)
+            _ = EnsureNtfyTopicAsync(persistIfGenerated: true);
+    }
+
+    [RelayCommand]
+    private void OpenNtfySubscribePage()
+    {
+        if (string.IsNullOrWhiteSpace(NtfySubscribeUrl))
+        {
+            Status = "订阅地址为空";
+            return;
+        }
+
+        try
+        {
+            OpenUrl(NtfySubscribeUrl);
+        }
+        catch (Exception ex)
+        {
+            Status = $"打开失败：{ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task RegenerateNtfyTopicAsync()
+    {
+        NtfyTopic = NtfyTopicGenerator.Generate();
+        try
+        {
+            await PersistSettingsAsync(updateStatus: false);
+            Status = "已重新生成订阅通道";
+        }
+        catch (Exception ex)
+        {
+            Status = ex.Message;
+        }
+    }
+
+    [RelayCommand]
+    private async Task SendNtfyTestMessageAsync()
+    {
+        if (!NtfyEnabled)
+        {
+            Status = "请先开启推送通知";
+            return;
+        }
+
+        if (IsBusy)
+            return;
+
+        IsBusy = true;
+        Status = "正在发送测试消息…";
+
+        try
+        {
+            await EnsureNtfyTopicAsync(persistIfGenerated: true);
+            var result = await NtfyClient.SendAsync(
+                serverBaseUrl: NtfyServerBaseUrl,
+                topic: NtfyTopic,
+                message: $"这是一条测试消息。\n时间：{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}",
+                title: "UESTCJWCWatchdog 测试");
+
+            Status = $"测试消息已发送（id={result.Id}）";
+        }
+        catch (Exception ex)
+        {
+            Status = $"发送失败：{ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     private void InitializeSemesterChoices()
     {
         if (AvailableSemesterYears.Count > 0)
@@ -671,5 +861,26 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         Process.Start("xdg-open", path);
+    }
+
+    private static void OpenUrl(string url)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true,
+            });
+            return;
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            Process.Start("open", url);
+            return;
+        }
+
+        Process.Start("xdg-open", url);
     }
 }
