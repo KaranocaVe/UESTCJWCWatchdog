@@ -46,6 +46,7 @@
                                     <DataGrid ItemsSource="{Binding FinalGrades}"
                                               Grid.Row="1"
                                               AutoGenerateColumns="False"
+                                              HeadersVisibility="Column"
                                               IsReadOnly="True"
                                               GridLinesVisibility="Horizontal">
                                         <DataGrid.Columns>
@@ -67,6 +68,7 @@
                                     <DataGrid ItemsSource="{Binding UsualGrades}"
                                               Grid.Row="1"
                                               AutoGenerateColumns="False"
+                                              HeadersVisibility="Column"
                                               IsReadOnly="True"
                                               GridLinesVisibility="Horizontal">
                                         <DataGrid.Columns>
