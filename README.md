@@ -80,7 +80,30 @@ curl -d "Hi" ntfy.sh/<topic>
 
 清除登录态：
 
-- GUI：「设置」→“清除登录状态”，或手动删除对应账号目录下的 `user-data/` 与 `storage-state.json`。
+- GUI：「设置」→"清除登录状态"，或手动删除对应账号目录下的 `user-data/` 与 `storage-state.json`。
+
+## macOS 用户注意
+
+如果你从 GitHub Releases 下载了 macOS 版本，首次运行时可能会看到 Gatekeeper 警告：
+
+**"无法打开 Watchdog.App.app，因为无法验证开发者。"**
+
+### 解决方法（任选其一）：
+
+1. **右键打开（推荐）**：
+   - 右键点击 `Watchdog.App.app` → 选择「打开」→ 点击「打开」
+   - 之后就可以正常双击打开了
+
+2. **系统设置允许**：
+   - 打开「系统设置」→「隐私与安全性」
+   - 找到被阻止的消息 → 点击「仍要打开」
+
+3. **移除隔离属性**（高级）：
+   ```bash
+   xattr -cr /path/to/Watchdog.App.app
+   ```
+
+详细说明见：[macOS 签名文档](docs/MACOS_SIGNING.md)
 
 ## 开发与构建
 
