@@ -1,5 +1,8 @@
 # UESTCJWCWatchdog
 
+[![CI](https://github.com/karanocave/UESTCJWCWatchdog/actions/workflows/ci.yml/badge.svg)](https://github.com/karanocave/UESTCJWCWatchdog/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/karanocave/UESTCJWCWatchdog)](https://github.com/karanocave/UESTCJWCWatchdog/releases/latest)
+
 跨平台的 UESTC 教务系统（EAMS）成绩查询/监控工具：提供桌面 GUI（AvaloniaUI）与 CLI 两种使用方式，默认无头模式运行，并支持登录态保留与成绩更新通知（ntfy.sh）。
 
 > 声明：本项目为第三方工具，与学校官方无关；请遵守学校相关规定与平台条款，自行承担使用风险。
@@ -17,7 +20,7 @@
 
 前置要求：
 
-- `.NET 8 SDK`
+- `.NET 10 SDK`
 - **Chrome（推荐）**：GUI 内默认使用“系统 Chrome”，也可切换到“内置 Chromium”
 
 启动：
