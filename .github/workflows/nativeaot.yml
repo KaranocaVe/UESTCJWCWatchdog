@@ -16,28 +16,28 @@ on:
 permissions: read-all
 
 jobs:
+  set-matrix:
+    name: Set matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate-matrix.outputs.matrix }}
+    steps:
+      - name: Generate matrix
+        id: generate-matrix
+        run: |
+          if [[ "${{ inputs.include_arm64 }}" == "true" ]]; then
+            echo 'matrix={"include":[{"os":"windows-latest","rid":"win-x64"},{"os":"ubuntu-latest","rid":"linux-x64"},{"os":"macos-latest","rid":"osx-x64"},{"os":"macos-latest","rid":"osx-arm64"},{"os":"windows-latest","rid":"win-arm64"},{"os":"ubuntu-latest","rid":"linux-arm64"}]}' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix={"include":[{"os":"windows-latest","rid":"win-x64"},{"os":"ubuntu-latest","rid":"linux-x64"},{"os":"macos-latest","rid":"osx-x64"},{"os":"macos-latest","rid":"osx-arm64"}]}' >> $GITHUB_OUTPUT
+          fi
+
   publish:
     name: Publish AOT (${{ matrix.rid }})
-    if: ${{ !matrix.arm64 || inputs.include_arm64 }}
+    needs: set-matrix
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            rid: win-x64
-          - os: ubuntu-latest
-            rid: linux-x64
-          - os: macos-latest
-            rid: osx-x64
-          - os: macos-latest
-            rid: osx-arm64
-          - os: windows-latest
-            rid: win-arm64
-            arm64: true
-          - os: ubuntu-latest
-            rid: linux-arm64
-            arm64: true
+      matrix: ${{ fromJson(needs.set-matrix.outputs.matrix) }}
 
     steps:
       - name: Checkout
