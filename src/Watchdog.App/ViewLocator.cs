@@ -1,27 +1,20 @@
-using System;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Watchdog.App.ViewModels;
+using Watchdog.App.Views;
 
 namespace Watchdog.App;
 
 public class ViewLocator : IDataTemplate
 {
-
     public Control? Build(object? param)
     {
-        if (param is null)
-            return null;
-        
-        var name = param.GetType().FullName!.Replace("ViewModel", "View", StringComparison.Ordinal);
-        var type = Type.GetType(name);
-
-        if (type != null)
+        return param switch
         {
-            return (Control)Activator.CreateInstance(type)!;
-        }
-        
-        return new TextBlock { Text = "Not Found: " + name };
+            null => null,
+            MainWindowViewModel => new MainWindow(),
+            _ => new TextBlock { Text = "Not Found: " + param.GetType().FullName },
+        };
     }
 
     public bool Match(object? data)
