@@ -100,7 +100,7 @@ Directory.CreateDirectory(userDataDir);
 var statePath = Path.Combine(profileDir, "state.json");
 var storageStatePath = Path.Combine(profileDir, "storage-state.json");
 
-var stateStore = new JsonStateStore<ProfileState>(statePath);
+var stateStore = new JsonStateStore<ProfileState>(statePath, WatchdogCoreJsonContext.Default.ProfileState);
 var state = await stateStore.LoadAsync() ?? new ProfileState { Account = account };
 
 var options = new EamsClientOptions

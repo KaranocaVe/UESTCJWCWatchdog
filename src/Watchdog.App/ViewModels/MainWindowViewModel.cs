@@ -16,7 +16,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private static readonly string SettingsPath = Path.Combine(AppPaths.GetAppDataDir(), "settings.json");
 
     private bool _initialized;
-    private readonly JsonStateStore<AppSettings> _settingsStore = new(SettingsPath);
+    private readonly JsonStateStore<AppSettings> _settingsStore = new(SettingsPath, WatchdogAppJsonContext.Default.AppSettings);
 
     [ObservableProperty]
     private bool _isBusy;
@@ -257,7 +257,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 // Persist snapshot for offline view / next launch.
                 var statePath = Path.Combine(profileDir, "state.json");
                 var storageStatePath = Path.Combine(profileDir, "storage-state.json");
-                var stateStore = new JsonStateStore<ProfileState>(statePath);
+                var stateStore = new JsonStateStore<ProfileState>(statePath, WatchdogCoreJsonContext.Default.ProfileState);
                 var state = await stateStore.LoadAsync() ?? new ProfileState { Account = Account.Trim() };
                 state.SemesterId = snapshot.SemesterId;
                 state.LastFetchedAt = snapshot.FetchedAt;
@@ -526,7 +526,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             var profileDir = AppPaths.GetProfileDir(Account);
             var statePath = Path.Combine(profileDir, "state.json");
-            var store = new JsonStateStore<ProfileState>(statePath);
+            var store = new JsonStateStore<ProfileState>(statePath, WatchdogCoreJsonContext.Default.ProfileState);
             var state = await store.LoadAsync();
             if (state is null)
                 return;
