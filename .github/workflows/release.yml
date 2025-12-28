@@ -111,10 +111,54 @@ jobs:
             (cd "artifacts/publish/$RID/cli" && zip -r "../../../../dist/UESTCJWCWatchdog-Cli-${VERSION}-${RID}.zip" .)
             (cd "artifacts/publish/$RID/app" && zip -r "../../../../dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.zip" .)
           elif [[ "$RID" == osx-* ]]; then
-            # macOS: 设置 .app bundle 权限并使用 tar 打包
-            chmod +x "artifacts/publish/$RID/cli/Watchdog.Cli" || true
-            find "artifacts/publish/$RID/app" -name "*.app" -exec chmod +x {}/Contents/MacOS/* \; || true
+            # macOS: 创建 .app bundle 结构
+
+            # 打包 CLI
+            chmod +x "artifacts/publish/$RID/cli/Watchdog.Cli"
             tar -C "artifacts/publish/$RID/cli" -czf "dist/UESTCJWCWatchdog-Cli-${VERSION}-${RID}.tar.gz" .
+
+            # 创建 App .app bundle
+            APP_BUNDLE="artifacts/publish/$RID/app/Watchdog.App.app"
+            mkdir -p "$APP_BUNDLE/Contents/MacOS"
+            mkdir -p "$APP_BUNDLE/Contents/Resources"
+
+            # 创建 Info.plist
+            cat > "$APP_BUNDLE/Contents/Info.plist" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>Watchdog.App</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.uestcjwc.watchdog</string>
+              <key>CFBundleName</key>
+              <string>Watchdog.App</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>5.1.0</string>
+              <key>CFBundleVersion</key>
+              <string>5.1.0</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>10.15</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+              <key>NSPrincipalClass</key>
+              <string>NSApplication</string>
+          </dict>
+          </plist>
+          EOF
+
+            # 复制所有文件到 .app bundle（除了 .app 目录本身）
+            find "artifacts/publish/$RID/app" -maxdepth 1 \
+              ! -name "Watchdog.App.app" \
+              ! -name "app" \
+              -exec cp -r {} "$APP_BUNDLE/Contents/MacOS/" \;
+
+            chmod +x "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
+
+            # 打包整个 app 目录
             tar -C "artifacts/publish/$RID/app" -czf "dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.tar.gz" .
           else
             # Linux: 设置可执行权限并使用 tar 打包
