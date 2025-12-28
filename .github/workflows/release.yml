@@ -128,8 +128,8 @@ jobs:
 
             chmod +x "$APP_BUNDLE/Contents/MacOS/Watchdog.App"
 
-            # 打包整个 app 目录
-            tar -C "artifacts/publish/$RID/app" -czf "dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.tar.gz" .
+            # 只打包 .app bundle 本身
+            tar -C "artifacts/publish/$RID/app" -czf "dist/UESTCJWCWatchdog-App-${VERSION}-${RID}.tar.gz" Watchdog.App.app
           else
             # Linux: 设置可执行权限并使用 tar 打包
             chmod +x "artifacts/publish/$RID/app/Watchdog.App" || true
