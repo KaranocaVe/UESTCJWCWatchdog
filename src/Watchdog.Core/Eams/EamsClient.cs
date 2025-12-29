@@ -29,26 +29,18 @@ public sealed class EamsClient : IAsyncDisposable
 
         // 确定要使用的浏览器通道
         var channel = NormalizeChannel(_options.Channel);
-        var executablePath = string.IsNullOrWhiteSpace(_options.ExecutablePath) ? null : _options.ExecutablePath;
 
-        // 如果用户指定了 Chrome 但没有提供可执行路径，尝试自动检测
+        // 如果用户指定了 Chrome 但没有提供可执行路径，尝试自动检测并回退
         if (string.Equals(channel, "chrome", StringComparison.OrdinalIgnoreCase) &&
-            string.IsNullOrWhiteSpace(executablePath) &&
             string.IsNullOrWhiteSpace(_options.ExecutablePath))
         {
+            Console.WriteLine("🔍 尝试使用 Chrome...");
             // 尝试启动浏览器，如果失败则回退到 Edge
             _context = await TryLaunchBrowserWithFallbackAsync(
                 _playwright,
                 primaryChannel: "chrome",
                 fallbackChannel: "msedge",
-                userDataDir: _options.UserDataDir,
-                options: new BrowserTypeLaunchPersistentContextOptions
-                {
-                    Channel = "chrome",
-                    Headless = _options.HeadlessImplementation == HeadlessImplementation.Playwright && _options.Headless,
-                    SlowMo = _options.SlowMoMs,
-                    BypassCSP = _options.BypassCsp,
-                });
+                userDataDir: _options.UserDataDir);
         }
         else
         {
@@ -56,7 +48,7 @@ public sealed class EamsClient : IAsyncDisposable
             var launchOptions = new BrowserTypeLaunchPersistentContextOptions
             {
                 Channel = channel,
-                ExecutablePath = executablePath,
+                ExecutablePath = _options.ExecutablePath,
                 Headless = _options.HeadlessImplementation == HeadlessImplementation.Playwright && _options.Headless,
                 SlowMo = _options.SlowMoMs,
                 BypassCSP = _options.BypassCsp,
@@ -800,8 +792,7 @@ public sealed class EamsClient : IAsyncDisposable
         IPlaywright playwright,
         string primaryChannel,
         string fallbackChannel,
-        string userDataDir,
-        BrowserTypeLaunchPersistentContextOptions options)
+        string userDataDir)
     {
         // 首先尝试使用主通道 (Chrome)
         try
@@ -810,15 +801,25 @@ public sealed class EamsClient : IAsyncDisposable
             var chromeOptions = new BrowserTypeLaunchPersistentContextOptions
             {
                 Channel = primaryChannel,
-                Headless = options.Headless,
-                SlowMo = options.SlowMo,
-                BypassCSP = options.BypassCSP,
+                Headless = _options.HeadlessImplementation == HeadlessImplementation.Playwright && _options.Headless,
+                SlowMo = _options.SlowMoMs,
+                BypassCSP = _options.BypassCsp,
             };
             ApplyOptionsToLaunch(chromeOptions);
 
             return await LaunchWithOptionsAsync(playwright, primaryChannel, userDataDir, chromeOptions);
         }
-        catch (Exception ex) when (ex.Message.Contains("Executable") || ex.Message.Contains("browser") || ex.Message.Contains("Driver"))
+        catch (Exception ex) when (
+            ex.Message.Contains("Executable", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("executable", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("browser", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("Driver", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("driver", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("launch", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("doesn't exist", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("Failed to", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("Target closed", StringComparison.OrdinalIgnoreCase))
         {
             // Chrome 未找到，尝试回退到 Edge
             Console.WriteLine($"⚠️  Chrome 未找到，自动回退到 Microsoft Edge...");
@@ -827,9 +828,9 @@ public sealed class EamsClient : IAsyncDisposable
             var edgeOptions = new BrowserTypeLaunchPersistentContextOptions
             {
                 Channel = fallbackChannel,
-                Headless = options.Headless,
-                SlowMo = options.SlowMo,
-                BypassCSP = options.BypassCSP,
+                Headless = _options.HeadlessImplementation == HeadlessImplementation.Playwright && _options.Headless,
+                SlowMo = _options.SlowMoMs,
+                BypassCSP = _options.BypassCsp,
             };
 
             // 应用所有配置选项
