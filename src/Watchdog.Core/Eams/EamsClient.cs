@@ -26,53 +26,81 @@ public sealed class EamsClient : IAsyncDisposable
             return;
 
         _playwright = await Playwright.CreateAsync();
-        var launchOptions = new BrowserTypeLaunchPersistentContextOptions
-        {
-            Channel = NormalizeChannel(_options.Channel),
-            ExecutablePath = string.IsNullOrWhiteSpace(_options.ExecutablePath) ? null : _options.ExecutablePath,
-            Headless = _options.HeadlessImplementation == HeadlessImplementation.Playwright && _options.Headless,
-            SlowMo = _options.SlowMoMs,
-            BypassCSP = _options.BypassCsp,
-        };
 
-        if (_options.NoViewport)
+        // 确定要使用的浏览器通道
+        var channel = NormalizeChannel(_options.Channel);
+        var executablePath = string.IsNullOrWhiteSpace(_options.ExecutablePath) ? null : _options.ExecutablePath;
+
+        // 如果用户指定了 Chrome 但没有提供可执行路径，尝试自动检测
+        if (string.Equals(channel, "chrome", StringComparison.OrdinalIgnoreCase) &&
+            string.IsNullOrWhiteSpace(executablePath) &&
+            string.IsNullOrWhiteSpace(_options.ExecutablePath))
         {
-            launchOptions.ViewportSize = ViewportSize.NoViewport;
+            // 尝试启动浏览器，如果失败则回退到 Edge
+            _context = await TryLaunchBrowserWithFallbackAsync(
+                _playwright,
+                primaryChannel: "chrome",
+                fallbackChannel: "msedge",
+                userDataDir: _options.UserDataDir,
+                options: new BrowserTypeLaunchPersistentContextOptions
+                {
+                    Channel = "chrome",
+                    Headless = _options.HeadlessImplementation == HeadlessImplementation.Playwright && _options.Headless,
+                    SlowMo = _options.SlowMoMs,
+                    BypassCSP = _options.BypassCsp,
+                });
         }
-        else if (_options.WindowWidth > 0 && _options.WindowHeight > 0)
+        else
         {
-            launchOptions.ViewportSize = new ViewportSize { Width = _options.WindowWidth, Height = _options.WindowHeight };
-            launchOptions.ScreenSize = new ScreenSize { Width = _options.WindowWidth, Height = _options.WindowHeight };
+            // 使用指定的配置直接启动
+            var launchOptions = new BrowserTypeLaunchPersistentContextOptions
+            {
+                Channel = channel,
+                ExecutablePath = executablePath,
+                Headless = _options.HeadlessImplementation == HeadlessImplementation.Playwright && _options.Headless,
+                SlowMo = _options.SlowMoMs,
+                BypassCSP = _options.BypassCsp,
+            };
+
+            if (_options.NoViewport)
+            {
+                launchOptions.ViewportSize = ViewportSize.NoViewport;
+            }
+            else if (_options.WindowWidth > 0 && _options.WindowHeight > 0)
+            {
+                launchOptions.ViewportSize = new ViewportSize { Width = _options.WindowWidth, Height = _options.WindowHeight };
+                launchOptions.ScreenSize = new ScreenSize { Width = _options.WindowWidth, Height = _options.WindowHeight };
+            }
+
+            var userAgent = ResolveUserAgent();
+            if (!string.IsNullOrWhiteSpace(userAgent))
+                launchOptions.UserAgent = userAgent;
+
+            if (_options.ExtraHttpHeaders is not null && _options.ExtraHttpHeaders.Count > 0)
+                launchOptions.ExtraHTTPHeaders = new Dictionary<string, string>(_options.ExtraHttpHeaders);
+
+            var args = new List<string>();
+            if (_options.Headless && _options.HeadlessImplementation == HeadlessImplementation.ChromiumArg)
+                args.Add(_options.ChromiumHeadlessArg);
+
+            if (_options.ApplyLegacySpiderArgs)
+            {
+                args.Add("--disable-gpu");
+                args.Add("--no-sandbox");
+
+                if (_options.WindowWidth > 0 && _options.WindowHeight > 0)
+                    args.Add($"--window-size={_options.WindowWidth},{_options.WindowHeight}");
+
+                args.Add("--disable-blink-features=AutomationControlled");
+            }
+
+            if (args.Count > 0)
+                launchOptions.Args = args;
+
+            _context = await _playwright.Chromium.LaunchPersistentContextAsync(
+                userDataDir: _options.UserDataDir,
+                options: launchOptions);
         }
-
-        var userAgent = ResolveUserAgent();
-        if (!string.IsNullOrWhiteSpace(userAgent))
-            launchOptions.UserAgent = userAgent;
-
-        if (_options.ExtraHttpHeaders is not null && _options.ExtraHttpHeaders.Count > 0)
-            launchOptions.ExtraHTTPHeaders = new Dictionary<string, string>(_options.ExtraHttpHeaders);
-
-        var args = new List<string>();
-        if (_options.Headless && _options.HeadlessImplementation == HeadlessImplementation.ChromiumArg)
-            args.Add(_options.ChromiumHeadlessArg);
-
-        if (_options.ApplyLegacySpiderArgs)
-        {
-            args.Add("--disable-gpu");
-            args.Add("--no-sandbox");
-
-            if (_options.WindowWidth > 0 && _options.WindowHeight > 0)
-                args.Add($"--window-size={_options.WindowWidth},{_options.WindowHeight}");
-
-            args.Add("--disable-blink-features=AutomationControlled");
-        }
-
-        if (args.Count > 0)
-            launchOptions.Args = args;
-
-        _context = await _playwright.Chromium.LaunchPersistentContextAsync(
-            userDataDir: _options.UserDataDir,
-            options: launchOptions);
 
         _context.SetDefaultTimeout(_options.DefaultTimeoutMs);
         _context.SetDefaultNavigationTimeout(_options.NavigationTimeoutMs);
@@ -766,6 +794,99 @@ public sealed class EamsClient : IAsyncDisposable
             return null;
 
         return trimmed;
+    }
+
+    private async Task<IBrowserContext> TryLaunchBrowserWithFallbackAsync(
+        IPlaywright playwright,
+        string primaryChannel,
+        string fallbackChannel,
+        string userDataDir,
+        BrowserTypeLaunchPersistentContextOptions options)
+    {
+        // 首先尝试使用主通道 (Chrome)
+        try
+        {
+            // 应用配置选项到 Chrome
+            var chromeOptions = new BrowserTypeLaunchPersistentContextOptions
+            {
+                Channel = primaryChannel,
+                Headless = options.Headless,
+                SlowMo = options.SlowMo,
+                BypassCSP = options.BypassCSP,
+            };
+            ApplyOptionsToLaunch(chromeOptions);
+
+            return await LaunchWithOptionsAsync(playwright, primaryChannel, userDataDir, chromeOptions);
+        }
+        catch (Exception ex) when (ex.Message.Contains("Executable") || ex.Message.Contains("browser") || ex.Message.Contains("Driver"))
+        {
+            // Chrome 未找到，尝试回退到 Edge
+            Console.WriteLine($"⚠️  Chrome 未找到，自动回退到 Microsoft Edge...");
+
+            // 创建 Edge 配置
+            var edgeOptions = new BrowserTypeLaunchPersistentContextOptions
+            {
+                Channel = fallbackChannel,
+                Headless = options.Headless,
+                SlowMo = options.SlowMo,
+                BypassCSP = options.BypassCSP,
+            };
+
+            // 应用所有配置选项
+            ApplyOptionsToLaunch(edgeOptions);
+
+            return await LaunchWithOptionsAsync(playwright, fallbackChannel, userDataDir, edgeOptions);
+        }
+    }
+
+    private async Task<IBrowserContext> LaunchWithOptionsAsync(
+        IPlaywright playwright,
+        string channel,
+        string userDataDir,
+        BrowserTypeLaunchPersistentContextOptions options)
+    {
+        // 构建启动参数
+        var args = new List<string>();
+        if (_options.Headless && _options.HeadlessImplementation == HeadlessImplementation.ChromiumArg)
+            args.Add(_options.ChromiumHeadlessArg);
+
+        if (_options.ApplyLegacySpiderArgs)
+        {
+            args.Add("--disable-gpu");
+            args.Add("--no-sandbox");
+
+            if (_options.WindowWidth > 0 && _options.WindowHeight > 0)
+                args.Add($"--window-size={_options.WindowWidth},{_options.WindowHeight}");
+
+            args.Add("--disable-blink-features=AutomationControlled");
+        }
+
+        if (args.Count > 0)
+            options.Args = args;
+
+        return await playwright.Chromium.LaunchPersistentContextAsync(
+            userDataDir: userDataDir,
+            options: options);
+    }
+
+    private void ApplyOptionsToLaunch(BrowserTypeLaunchPersistentContextOptions options)
+    {
+        if (_options.NoViewport)
+        {
+            options.ViewportSize = ViewportSize.NoViewport;
+        }
+        else if (_options.WindowWidth > 0 && _options.WindowHeight > 0)
+        {
+            options.ViewportSize = new ViewportSize { Width = _options.WindowWidth, Height = _options.WindowHeight };
+            options.ScreenSize = new ScreenSize { Width = _options.WindowWidth, Height = _options.WindowHeight };
+        }
+
+        var userAgent = ResolveUserAgent();
+        if (!string.IsNullOrWhiteSpace(userAgent))
+            options.UserAgent = userAgent;
+
+        if (_options.ExtraHttpHeaders is not null && _options.ExtraHttpHeaders.Count > 0)
+            options.ExtraHTTPHeaders = new Dictionary<string, string>(_options.ExtraHttpHeaders);
     }
 
     private string? ResolveUserAgent()
