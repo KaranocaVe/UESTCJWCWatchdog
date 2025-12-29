@@ -56,27 +56,14 @@ jobs:
       - name: Publish App
         shell: bash
         run: |
-          if [[ "${{ matrix.rid }}" == osx-* ]]; then
-            # macOS: 不使用单文件发布，保留 .app bundle 结构
-            dotnet publish src/Watchdog.App/Watchdog.App.csproj \
-              -c Release \
-              -r "${{ matrix.rid }}" \
-              --self-contained true \
-              -o "artifacts/publish/${{ matrix.rid }}/app" \
-              -p:Version="${{ steps.vars.outputs.version }}" \
-              -p:PublishTrimmed=false
-          else
-            # 其他平台使用单文件发布
-            dotnet publish src/Watchdog.App/Watchdog.App.csproj \
-              -c Release \
-              -r "${{ matrix.rid }}" \
-              --self-contained true \
-              -o "artifacts/publish/${{ matrix.rid }}/app" \
-              -p:Version="${{ steps.vars.outputs.version }}" \
-              -p:PublishSingleFile=true \
-              -p:IncludeNativeLibrariesForSelfExtract=true \
-              -p:PublishTrimmed=false
-          fi
+          # 所有平台都不使用单文件发布，以保留所有依赖文件
+          dotnet publish src/Watchdog.App/Watchdog.App.csproj \
+            -c Release \
+            -r "${{ matrix.rid }}" \
+            --self-contained true \
+            -o "artifacts/publish/${{ matrix.rid }}/app" \
+            -p:Version="${{ steps.vars.outputs.version }}" \
+            -p:PublishTrimmed=false
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
