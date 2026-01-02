@@ -12,7 +12,6 @@
 
 <img width="1082" height="748" alt="image" src="https://github.com/user-attachments/assets/04ab2acc-9cae-4a94-8838-68da07b17946" />
 
-
 ## 功能概览
 
 - **成绩查询**：查询“期末/总评”和“平时”两类成绩，并用表格展示。
@@ -144,7 +143,7 @@ curl -sS -X POST "http://127.0.0.1:8000/invoke" \
 
 **"无法打开 Watchdog.App.app，因为无法验证开发者。"**
 
-### 解决方法（任选其一）：
+### 解决方法（任选其一）
 
 1. **右键打开（推荐）**：
    - 右键点击 `Watchdog.App.app` → 选择「打开」→ 点击「打开」
@@ -153,13 +152,6 @@ curl -sS -X POST "http://127.0.0.1:8000/invoke" \
 2. **系统设置允许**：
    - 打开「系统设置」→「隐私与安全性」
    - 找到被阻止的消息 → 点击「仍要打开」
-
-3. **移除隔离属性**（高级）：
-   ```bash
-   xattr -cr /path/to/Watchdog.App.app
-   ```
-
-详细说明见：[macOS 签名文档](docs/MACOS_SIGNING.md)
 
 ## 开发与构建
 
