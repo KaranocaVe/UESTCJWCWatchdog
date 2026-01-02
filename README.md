@@ -75,6 +75,56 @@ dotnet run --project src/Watchdog.Cli -- --headless true --channel chrome
 curl -d "Hi" ntfy.sh/<topic>
 ```
 
+## 云函数（Docker）
+
+提供一个容器化的无状态执行入口：会先读取 `ntfy` topic 的最新消息作为“上次状态”，再抓取当前成绩对比；若发现新增/更新则推送，并把新状态写回到 topic（消息末尾会包含 `watchdog_state:v1:` 行）。
+
+构建镜像：
+
+```bash
+docker build -t uestc-watchdog-fn .
+```
+
+### 方式 A：华为云函数（定时器触发）
+
+华为云函数自定义镜像要求容器内启动 HTTP Server 并监听 `8000`，平台会以 `POST /invoke` 方式触发执行；因此参数建议通过“函数配置环境变量”提供（定时器无需 URL 请求）。
+
+必需环境变量：
+
+- `WATCHDOG_TOPIC`
+- `WATCHDOG_ACCOUNT`
+- `WATCHDOG_PASSWORD`
+
+可选环境变量（同名字段也可从 `/invoke` 请求 JSON 提供）：
+
+- `WATCHDOG_NTFY_SERVER_BASE_URL`：默认为 `https://ntfy.sh`
+- `WATCHDOG_SEMESTER_ID`：手动指定学期 ID（不填则按本地时间推导当前学期）
+
+### 方式 B：HTTP 调用（可选）
+
+启动（监听 `8000`）：
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e WATCHDOG_TOPIC="<topic>" \
+  -e WATCHDOG_ACCOUNT="<account>" \
+  -e WATCHDOG_PASSWORD="<password>" \
+  uestc-watchdog-fn
+```
+
+调用：
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8000/invoke" \
+  -H "content-type: application/json" \
+  -d '{}'
+```
+
+可选字段：
+
+- `ntfyServerBaseUrl`：默认为 `https://ntfy.sh`
+- `semesterId`：手动指定学期 ID（不填则按本地时间推导当前学期）
+
 ## 数据目录与隐私
 
 本项目会在系统应用数据目录下保存设置与缓存（路径随系统不同而不同）：
@@ -120,4 +170,3 @@ curl -d "Hi" ntfy.sh/<topic>
   - `src/Watchdog.Cli`：CLI
 - 构建：`dotnet build`
 - 发布流程见：`RELEASING.md`
-
