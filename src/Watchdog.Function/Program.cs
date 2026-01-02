@@ -156,8 +156,11 @@ app.MapGet("/healthz", () => Results.Ok(new { ok = true }));
 
 app.MapPost("/init", () => Results.Json(EnvelopeText(statusCode: 200, bodyText: "ok")));
 
-app.MapPost("/invoke", async (HttpRequest request, CancellationToken cancellationToken) =>
+app.MapPost("/invoke", async (HttpContext context, CancellationToken cancellationToken) =>
 {
+    var traceId = context.TraceIdentifier ?? Guid.NewGuid().ToString("n");
+    var request = context.Request;
+
     InvokeRequestDto? body = null;
     try
     {
@@ -176,20 +179,27 @@ app.MapPost("/invoke", async (HttpRequest request, CancellationToken cancellatio
     }
     catch (ArgumentException ex)
     {
+        Console.Error.WriteLine($"[watchdog] bad_request traceId={traceId} error={ex.Message}");
         return Results.Json(EnvelopeJson(statusCode: 400, bodyJson: JsonSerializer.Serialize(new { error = ex.Message }, webJson)));
     }
+
+    Console.WriteLine($"[watchdog] invoke traceId={traceId} topic={invokeRequest.Topic} account={MaskAccount(invokeRequest.Account)}");
 
     try
     {
         var result = await WatchdogRunner.RunAsync(invokeRequest, cancellationToken);
+        LogResult(traceId, invokeRequest, result);
         return Results.Json(EnvelopeJson(statusCode: 200, bodyJson: JsonSerializer.Serialize(result, webJson)));
     }
     catch (ArgumentException ex)
     {
+        Console.Error.WriteLine($"[watchdog] bad_request traceId={traceId} topic={invokeRequest.Topic} account={MaskAccount(invokeRequest.Account)} error={ex.Message}");
         return Results.Json(EnvelopeJson(statusCode: 400, bodyJson: JsonSerializer.Serialize(new { error = ex.Message }, webJson)));
     }
     catch (Exception ex)
     {
+        Console.Error.WriteLine($"[watchdog] failed traceId={traceId} topic={invokeRequest.Topic} account={MaskAccount(invokeRequest.Account)} error={ex.Message}");
+        ScheduleCrash(exitCode: 1, reason: "invoke_failed", exception: ex);
         return Results.Json(EnvelopeJson(statusCode: 500, bodyJson: JsonSerializer.Serialize(new { error = ex.Message }, webJson)));
     }
 });
