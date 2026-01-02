@@ -69,6 +69,50 @@ static InvokeRequest BuildInvokeRequest(InvokeRequestDto? body, out string? erro
 }
 
 var webJson = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+var crashScheduled = 0;
+
+void ScheduleCrash(int exitCode, string reason, Exception? exception = null)
+{
+    if (Interlocked.Exchange(ref crashScheduled, 1) != 0)
+        return;
+
+    Console.Error.WriteLine($"[watchdog] crash_scheduled exitCode={exitCode} reason={reason}");
+    if (exception is not null)
+        Console.Error.WriteLine(exception.ToString());
+
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            await Task.Delay(300);
+        }
+        catch
+        {
+            // ignore
+        }
+
+        Environment.Exit(exitCode);
+    });
+}
+
+void LogResult(string traceId, InvokeRequest invokeRequest, InvokeResponse result)
+{
+    var payload = new
+    {
+        traceId,
+        topic = invokeRequest.Topic,
+        account = MaskAccount(invokeRequest.Account),
+        pushed = result.Pushed,
+        baselineInitialized = result.BaselineInitialized,
+        publishId = result.PublishId,
+        title = result.Title,
+        semesterId = result.SemesterId,
+        currentHash = result.CurrentHash,
+        previousHash = result.PreviousHash,
+    };
+
+    Console.WriteLine($"[watchdog] result {JsonSerializer.Serialize(payload, webJson)}");
+}
 
 static FunctionGraphResponse EnvelopeJson(int statusCode, string bodyJson)
 {
