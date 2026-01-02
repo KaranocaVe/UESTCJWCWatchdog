@@ -20,6 +20,18 @@ static string? Normalize(string? value)
     return value.Trim();
 }
 
+static string MaskAccount(string? account)
+{
+    if (string.IsNullOrWhiteSpace(account))
+        return "-";
+
+    var trimmed = account.Trim();
+    if (trimmed.Length <= 4)
+        return "***";
+
+    return $"***{trimmed[^4..]}";
+}
+
 static InvokeRequest BuildInvokeRequest(InvokeRequestDto? body, out string? error)
 {
     error = null;
