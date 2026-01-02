@@ -1,0 +1,12 @@
+.git
+.github
+**/bin
+**/obj
+**/.vs
+**/.idea
+**/.DS_Store
+**/*.user
+**/*.suo
+**/*.cache
+**/*.tmp
+
