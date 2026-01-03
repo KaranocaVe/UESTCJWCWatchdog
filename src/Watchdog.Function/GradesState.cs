@@ -393,10 +393,10 @@ public static class NtfyMessageBuilder
         return title;
     }
 
-    public static string BuildMessage(
+    public static string BuildNotificationMessage(
         GradesSnapshot snapshot,
         GradesDiff diff,
-        GradesStateV1 state)
+        string currentHash)
     {
         var sb = new StringBuilder();
 
@@ -426,10 +426,24 @@ public static class NtfyMessageBuilder
         }
 
         sb.AppendLine();
-        sb.AppendLine(GradesStateCodec.Encode(state));
-        sb.AppendLine($"hash={GradesStateCodec.HashHex(state)}");
+        sb.AppendLine($"hash={currentHash}");
 
         return sb.ToString().TrimEnd();
     }
 }
 
+public static class NtfyStateMessageBuilder
+{
+    public static string BuildMessage(
+        GradesSnapshot snapshot,
+        GradesStateV1 state,
+        string currentHash)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"semesterId={snapshot.SemesterId}");
+        sb.AppendLine($"fetchedAt={snapshot.FetchedAt:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine(GradesStateCodec.Encode(state));
+        sb.AppendLine($"hash={currentHash}");
+        return sb.ToString().TrimEnd();
+    }
+}
