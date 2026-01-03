@@ -76,7 +76,7 @@ curl -d "Hi" ntfy.sh/<topic>
 
 ## 云函数（Docker）
 
-提供一个容器化的无状态执行入口：会先读取 `ntfy` topic 的最新消息作为“上次状态”，再抓取当前成绩对比；若发现新增/更新则推送，并把新状态写回到 topic（消息末尾会包含 `watchdog_state:v1:` 行）。
+提供一个容器化的无状态执行入口：会先从“状态 topic”读取上次状态，再抓取当前成绩对比；若发现新增/更新则推送到“通知 topic”。由于 `ntfy.sh` 的缓存消息有时限，函数**每次执行都会把最新状态写入状态 topic**，用于持续刷新状态并实现无状态对比。
 
 构建镜像：
 
@@ -90,12 +90,13 @@ docker build -t uestc-watchdog-fn .
 
 必需环境变量：
 
-- `WATCHDOG_TOPIC`
+- `WATCHDOG_TOPIC`：通知 topic（订阅这个即可收到推送）
 - `WATCHDOG_ACCOUNT`
 - `WATCHDOG_PASSWORD`
 
 可选环境变量（同名字段也可从 `/invoke` 请求 JSON 提供）：
 
+- `WATCHDOG_STATE_TOPIC`：状态保存 topic（默认 `"<WATCHDOG_TOPIC>-state"`；建议不要订阅）
 - `WATCHDOG_NTFY_SERVER_BASE_URL`：默认为 `https://ntfy.sh`
 - `WATCHDOG_SEMESTER_ID`：手动指定学期 ID（不填则按本地时间推导当前学期）
 
@@ -106,6 +107,7 @@ docker build -t uestc-watchdog-fn .
 ```bash
 docker run --rm -p 8000:8000 \
   -e WATCHDOG_TOPIC="<topic>" \
+  -e WATCHDOG_STATE_TOPIC="<topic>-state" \
   -e WATCHDOG_ACCOUNT="<account>" \
   -e WATCHDOG_PASSWORD="<password>" \
   uestc-watchdog-fn
@@ -121,6 +123,7 @@ curl -sS -X POST "http://127.0.0.1:8000/invoke" \
 
 可选字段：
 
+- `stateTopic`：状态保存 topic（默认 `"<topic>-state"`）
 - `ntfyServerBaseUrl`：默认为 `https://ntfy.sh`
 - `semesterId`：手动指定学期 ID（不填则按本地时间推导当前学期）
 

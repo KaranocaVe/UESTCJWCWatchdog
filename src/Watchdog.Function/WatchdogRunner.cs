@@ -9,6 +9,7 @@ public sealed record InvokeRequest
     public required string Account { get; init; }
     public required string Password { get; init; }
 
+    public string? StateTopic { get; init; }
     public string? NtfyServerBaseUrl { get; init; }
     public string? SemesterId { get; init; }
 }
@@ -20,6 +21,8 @@ public sealed record InvokeResponse
     public string? PublishId { get; init; }
     public string? Title { get; init; }
     public string? NtfyTopic { get; init; }
+    public string? StateTopic { get; init; }
+    public string? StatePublishId { get; init; }
     public string? SemesterId { get; init; }
     public string? CurrentHash { get; init; }
     public string? PreviousHash { get; init; }
@@ -32,8 +35,8 @@ public static class WatchdogRunner
         if (request is null)
             throw new ArgumentNullException(nameof(request));
 
-        var topic = (request.Topic ?? string.Empty).Trim();
-        if (topic.Length == 0)
+        var notifyTopic = (request.Topic ?? string.Empty).Trim();
+        if (notifyTopic.Length == 0)
             throw new ArgumentException("Topic is required.", nameof(request.Topic));
 
         var account = (request.Account ?? string.Empty).Trim();
@@ -48,14 +51,29 @@ public static class WatchdogRunner
             ? "https://ntfy.sh"
             : request.NtfyServerBaseUrl.Trim();
 
-        var latest = await NtfyClient.GetLatestMessageAsync(
+        var stateTopic = string.IsNullOrWhiteSpace(request.StateTopic)
+            ? $"{notifyTopic}-state"
+            : request.StateTopic.Trim();
+        if (stateTopic.Length == 0)
+            throw new ArgumentException("State topic is required.", nameof(request.StateTopic));
+
+        var latestState = await NtfyClient.GetLatestMessageAsync(
             serverBaseUrl: ntfyServerBaseUrl,
-            topic: topic,
+            topic: stateTopic,
             cancellationToken: cancellationToken);
 
         GradesStateV1? previousState = null;
-        if (latest is not null && GradesStateCodec.TryDecodeFromMessage(latest.Message, out var parsed))
+        if (latestState is not null && GradesStateCodec.TryDecodeFromMessage(latestState.Message, out var parsed))
             previousState = parsed;
+
+        var latestNotify = await NtfyClient.GetLatestMessageAsync(
+            serverBaseUrl: ntfyServerBaseUrl,
+            topic: notifyTopic,
+            cancellationToken: cancellationToken);
+
+        string? latestNotifiedHash = null;
+        if (latestNotify is not null && TryExtractHashFromMessage(latestNotify.Message, out var notifyHash))
+            latestNotifiedHash = notifyHash;
 
         var userDataDir = CreateTempUserDataDir(account);
         try
@@ -83,36 +101,46 @@ public static class WatchdogRunner
                 : GradesDiffComputer.Compute(previousState!, currentState);
 
             var previousHash = previousState is null ? null : GradesStateCodec.HashHex(previousState);
-            if (!baseline && diff.TotalChangedOrAdded == 0)
+            var alreadyNotified = latestNotifiedHash is not null &&
+                                  string.Equals(latestNotifiedHash, currentHash, StringComparison.OrdinalIgnoreCase);
+
+            string? title = null;
+            string? publishId = null;
+            var pushed = false;
+
+            if (!alreadyNotified && (baseline || diff.TotalChangedOrAdded > 0))
             {
-                return new InvokeResponse
-                {
-                    Pushed = false,
-                    BaselineInitialized = false,
-                    NtfyTopic = topic,
-                    SemesterId = snapshot.SemesterId,
-                    CurrentHash = currentHash,
-                    PreviousHash = previousHash,
-                };
+                title = NtfyMessageBuilder.BuildTitle(diff, isBaseline: baseline);
+                var message = NtfyMessageBuilder.BuildNotificationMessage(snapshot, diff, currentHash);
+
+                var published = await NtfyClient.SendAsync(
+                    serverBaseUrl: ntfyServerBaseUrl,
+                    topic: notifyTopic,
+                    message: message,
+                    title: title,
+                    cancellationToken: cancellationToken);
+
+                pushed = true;
+                publishId = published.Id;
             }
 
-            var title = NtfyMessageBuilder.BuildTitle(diff, isBaseline: baseline);
-            var message = NtfyMessageBuilder.BuildMessage(snapshot, diff, currentState);
-
-            var published = await NtfyClient.SendAsync(
+            var stateMessage = NtfyStateMessageBuilder.BuildMessage(snapshot, currentState, currentHash);
+            var statePublished = await NtfyClient.SendAsync(
                 serverBaseUrl: ntfyServerBaseUrl,
-                topic: topic,
-                message: message,
-                title: title,
+                topic: stateTopic,
+                message: stateMessage,
+                title: "watchdog_state",
                 cancellationToken: cancellationToken);
 
             return new InvokeResponse
             {
-                Pushed = true,
+                Pushed = pushed,
                 BaselineInitialized = baseline,
-                PublishId = published.Id,
+                PublishId = publishId,
                 Title = title,
-                NtfyTopic = topic,
+                NtfyTopic = notifyTopic,
+                StateTopic = stateTopic,
+                StatePublishId = statePublished.Id,
                 SemesterId = snapshot.SemesterId,
                 CurrentHash = currentHash,
                 PreviousHash = previousHash,

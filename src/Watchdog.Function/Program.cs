@@ -58,9 +58,15 @@ static InvokeRequest BuildInvokeRequest(InvokeRequestDto? body, out string? erro
         Normalize(body?.SemesterId) ??
         GetEnv("WATCHDOG_SEMESTER_ID", "SEMESTER_ID", "semesterId");
 
+    var stateTopic =
+        Normalize(body?.StateTopic) ??
+        GetEnv("WATCHDOG_STATE_TOPIC", "STATE_TOPIC", "stateTopic") ??
+        $"{topic}-state";
+
     return new InvokeRequest
     {
         Topic = topic!,
+        StateTopic = stateTopic,
         Account = account!,
         Password = password!,
         NtfyServerBaseUrl = ntfyServerBaseUrl,
@@ -101,11 +107,13 @@ void LogResult(string traceId, InvokeRequest invokeRequest, InvokeResponse resul
     {
         traceId,
         topic = invokeRequest.Topic,
+        stateTopic = invokeRequest.StateTopic,
         account = MaskAccount(invokeRequest.Account),
         pushed = result.Pushed,
         baselineInitialized = result.BaselineInitialized,
         publishId = result.PublishId,
         title = result.Title,
+        statePublishId = result.StatePublishId,
         semesterId = result.SemesterId,
         currentHash = result.CurrentHash,
         previousHash = result.PreviousHash,
@@ -183,7 +191,7 @@ app.MapPost("/invoke", async (HttpContext context, CancellationToken cancellatio
         return Results.Json(EnvelopeJson(statusCode: 400, bodyJson: JsonSerializer.Serialize(new { error = ex.Message }, webJson)));
     }
 
-    Console.WriteLine($"[watchdog] invoke traceId={traceId} topic={invokeRequest.Topic} account={MaskAccount(invokeRequest.Account)}");
+    Console.WriteLine($"[watchdog] invoke traceId={traceId} topic={invokeRequest.Topic} stateTopic={invokeRequest.StateTopic} account={MaskAccount(invokeRequest.Account)}");
 
     try
     {
@@ -209,6 +217,7 @@ app.Run();
 file sealed record InvokeRequestDto
 {
     public string? Topic { get; init; }
+    public string? StateTopic { get; init; }
     public string? Account { get; init; }
     public string? Password { get; init; }
     public string? NtfyServerBaseUrl { get; init; }
