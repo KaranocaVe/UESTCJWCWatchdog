@@ -243,4 +243,41 @@ public static class WatchdogRunner
             _ => defaultValue,
         };
     }
+
+    private static bool TryExtractHashFromMessage(string? message, out string hash)
+    {
+        hash = string.Empty;
+        if (string.IsNullOrWhiteSpace(message))
+            return false;
+
+        const string key = "hash=";
+        var idx = message.LastIndexOf(key, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+            return false;
+
+        var start = idx + key.Length;
+        while (start < message.Length && char.IsWhiteSpace(message[start]))
+            start++;
+
+        var end = start;
+        while (end < message.Length && IsHex(message[end]))
+            end++;
+
+        if (end <= start)
+            return false;
+
+        var token = message[start..end].Trim();
+        if (token.Length != 64)
+            return false;
+
+        hash = token.ToLowerInvariant();
+        return true;
+    }
+
+    private static bool IsHex(char c)
+    {
+        return (c >= '0' && c <= '9')
+               || (c >= 'a' && c <= 'f')
+               || (c >= 'A' && c <= 'F');
+    }
 }
