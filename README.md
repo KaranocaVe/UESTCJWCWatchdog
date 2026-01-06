@@ -88,6 +88,8 @@ docker build -t uestc-watchdog-fn .
 
 华为云函数自定义镜像要求容器内启动 HTTP Server 并监听 `8000`，平台会以 `POST /invoke` 方式触发执行；因此参数建议通过“函数配置环境变量”提供（定时器无需 URL 请求）。
 
+镜像地址`swr.cn-southwest-2.myhuaweicloud.com/karanocave/uestc-watchdog-fn:latest`
+
 必需环境变量：
 
 - `WATCHDOG_TOPIC`：通知 topic（订阅这个即可收到推送）
