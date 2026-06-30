@@ -97,12 +97,15 @@ docker build -t uestc-watchdog-fn .
 - `WATCHDOG_TOPIC`：通知 topic（订阅这个即可收到推送）
 - `WATCHDOG_ACCOUNT`
 - `WATCHDOG_PASSWORD`
+- `IDAS_MULTIFACTOR_BROWSER_FINGERPRINT`：IDAS 微信二次校验后写入的可信浏览器 cookie；用于云函数免二次扫码登录
+- `WATCHDOG_SEED_COOKIES_BASE64`：可选但云函数推荐配置；把本地 Playwright storage state 里的 cookies 数组 JSON 做 base64 后填入，用于补齐 IDAS 可信客户端状态
 
 可选环境变量（同名字段也可从 `/invoke` 请求 JSON 提供）：
 
 - `WATCHDOG_STATE_TOPIC`：状态保存 topic（默认 `"<WATCHDOG_TOPIC>-state"`；建议不要订阅）
 - `WATCHDOG_NTFY_SERVER_BASE_URL`：默认为 `https://ntfy.sh`
 - `WATCHDOG_SEMESTER_ID`：手动指定学期 ID（不填则按本地时间推导当前学期）
+- `IDAS_HAPPY_VOYAGE`：可选的 IDAS 风险/可信客户端 cookie
 
 ### 方式 B：HTTP 调用（可选）
 

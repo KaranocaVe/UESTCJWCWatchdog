@@ -49,4 +49,13 @@ public sealed record EamsClientOptions
 
     /// <summary>Extra headers applied to all requests from this context.</summary>
     public IReadOnlyDictionary<string, string>? ExtraHttpHeaders { get; init; }
+
+    /// <summary>Trusted-browser cookie issued by IDAS after multifactor verification.</summary>
+    public string? IdasMultifactorBrowserFingerprint { get; init; }
+
+    /// <summary>Additional IDAS trust/risk cookie observed after multifactor verification.</summary>
+    public string? IdasHappyVoyage { get; init; }
+
+    /// <summary>Optional Playwright storage-state cookie array used to seed a stateless browser context.</summary>
+    public string? SeedCookiesJson { get; init; }
 }

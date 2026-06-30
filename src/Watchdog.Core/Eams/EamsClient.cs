@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using System.Collections.Concurrent;
+using System.Text.Json;
 
 namespace Watchdog.Core.Eams;
 
@@ -99,6 +100,8 @@ public sealed class EamsClient : IAsyncDisposable
 
         if (_options.EnableStealthScripts && _options.Headless)
             await ApplyStealthInitScriptsAsync(_context);
+
+        await AddSeedCookiesAsync(_context);
 
         _page = _context.Pages.FirstOrDefault() ?? await _context.NewPageAsync();
         _page.SetDefaultTimeout(_options.DefaultTimeoutMs);
@@ -705,6 +708,119 @@ public sealed class EamsClient : IAsyncDisposable
         }
     }
 
+    private async Task AddSeedCookiesAsync(IBrowserContext context)
+    {
+        var cookies = new List<Cookie>();
+        AddCookiesFromStorageStateJson(cookies, _options.SeedCookiesJson);
+
+        var idasMultifactorBrowserFingerprint = _options.IdasMultifactorBrowserFingerprint?.Trim();
+        if (!string.IsNullOrWhiteSpace(idasMultifactorBrowserFingerprint))
+        {
+            cookies.Add(
+                new Cookie
+                {
+                    Domain = "idas.uestc.edu.cn",
+                    Path = "/",
+                    Name = "MULTIFACTOR_BROWSER_FINGERPRINT",
+                    Value = idasMultifactorBrowserFingerprint,
+                    Expires = DateTimeOffset.UtcNow.AddYears(1).ToUnixTimeSeconds(),
+                    HttpOnly = true,
+                    Secure = false,
+                    SameSite = SameSiteAttribute.Lax,
+                });
+        }
+
+        var idasHappyVoyage = _options.IdasHappyVoyage?.Trim();
+        if (!string.IsNullOrWhiteSpace(idasHappyVoyage))
+        {
+            cookies.Add(
+                new Cookie
+                {
+                    Domain = "idas.uestc.edu.cn",
+                    Path = "/",
+                    Name = "happyVoyage",
+                    Value = idasHappyVoyage,
+                    HttpOnly = true,
+                    Secure = false,
+                    SameSite = SameSiteAttribute.Lax,
+                });
+        }
+
+        if (cookies.Count > 0)
+            await context.AddCookiesAsync(cookies);
+    }
+
+    private static void AddCookiesFromStorageStateJson(List<Cookie> cookies, string? rawJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+            return;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(rawJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                return;
+
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                var name = GetString(element, "name");
+                var value = GetString(element, "value");
+                var domain = GetString(element, "domain");
+                var path = GetString(element, "path") ?? "/";
+                if (string.IsNullOrWhiteSpace(name) ||
+                    string.IsNullOrWhiteSpace(value) ||
+                    string.IsNullOrWhiteSpace(domain))
+                {
+                    continue;
+                }
+
+                var cookie = new Cookie
+                {
+                    Name = name,
+                    Value = value,
+                    Domain = domain,
+                    Path = path,
+                    HttpOnly = GetBool(element, "httpOnly"),
+                    Secure = GetBool(element, "secure"),
+                };
+
+                if (TryGetDouble(element, "expires", out var expires) && expires > 0)
+                    cookie.Expires = (float)expires;
+
+                var sameSite = GetString(element, "sameSite");
+                if (Enum.TryParse<SameSiteAttribute>(sameSite, ignoreCase: true, out var parsedSameSite))
+                    cookie.SameSite = parsedSameSite;
+
+                cookies.Add(cookie);
+            }
+        }
+        catch
+        {
+            // Invalid seed cookies should not prevent normal username/password login.
+        }
+    }
+
+    private static string? GetString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : null;
+    }
+
+    private static bool GetBool(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind == JsonValueKind.True;
+    }
+
+    private static bool TryGetDouble(JsonElement element, string propertyName, out double value)
+    {
+        value = 0;
+        return element.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind == JsonValueKind.Number &&
+               property.TryGetDouble(out value);
+    }
+
     private async Task<bool> IsLikelyAntiBotPageAsync()
     {
         // Heuristic for the observed 202 anti-bot page: meta/script tags with r='m'.
@@ -754,9 +870,47 @@ public sealed class EamsClient : IAsyncDisposable
             }
             catch (TimeoutException)
             {
-                throw new InvalidOperationException("Unable to locate grade table on the page.");
+                var diagnostics = await GetPageDebugSummaryAsync();
+                throw new InvalidOperationException($"Unable to locate grade table on the page. {diagnostics}");
             }
         }
+    }
+
+    private async Task<string> GetPageDebugSummaryAsync()
+    {
+        string title;
+        try
+        {
+            title = await Page.TitleAsync();
+        }
+        catch
+        {
+            title = string.Empty;
+        }
+
+        string bodyText;
+        try
+        {
+            bodyText = await Page.Locator("body").InnerTextAsync(new LocatorInnerTextOptions { Timeout = 1_000 });
+        }
+        catch
+        {
+            bodyText = string.Empty;
+        }
+
+        bodyText = NormalizeInlineText(bodyText);
+        if (bodyText.Length > 600)
+            bodyText = bodyText[..600] + "...";
+
+        return $"url={Page.Url}; title={NormalizeInlineText(title)}; body={bodyText}";
+    }
+
+    private static string NormalizeInlineText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "-";
+
+        return string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
 
     private static bool LooksLikeAllSemesterOption(SemesterOption option)

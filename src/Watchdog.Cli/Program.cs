@@ -71,6 +71,9 @@ var windowSize = ParseWindowSize(GetArgValue(args, "--window-size") ?? Environme
 var channel = GetArgValue(args, "--channel") ?? Environment.GetEnvironmentVariable("BROWSER_CHANNEL") ?? "chrome";
 var executablePath = GetArgValue(args, "--executable-path") ?? Environment.GetEnvironmentVariable("EXECUTABLE_PATH");
 var userDataDirOverride = GetArgValue(args, "--user-data-dir") ?? Environment.GetEnvironmentVariable("USER_DATA_DIR");
+var idasMultifactorBrowserFingerprint =
+    GetArgValue(args, "--idas-multifactor-browser-fingerprint") ??
+    Environment.GetEnvironmentVariable("IDAS_MULTIFACTOR_BROWSER_FINGERPRINT");
 var antibotWaitMsRaw = GetArgValue(args, "--antibot-wait-ms") ?? Environment.GetEnvironmentVariable("ANTIBOT_WAIT_MS");
 var antibotWaitMs = int.TryParse(antibotWaitMsRaw, out var parsed) ? parsed : 60_000;
 var printFingerprint = ParseBool(GetArgValue(args, "--fingerprint") ?? Environment.GetEnvironmentVariable("FINGERPRINT"), defaultValue: false);
@@ -124,6 +127,9 @@ var options = new EamsClientOptions
     EnableStealthScripts = stealthScripts,
     DiagnosticsDir = debugDir,
     ExtraHttpHeaders = extraHeaders.Count == 0 ? null : extraHeaders,
+    IdasMultifactorBrowserFingerprint = string.IsNullOrWhiteSpace(idasMultifactorBrowserFingerprint)
+        ? null
+        : idasMultifactorBrowserFingerprint.Trim(),
 };
 
 await using var client = new EamsClient(options);

@@ -179,6 +179,22 @@ public static class WatchdogRunner
         var secChUa = Environment.GetEnvironmentVariable("SEC_CH_UA");
         var secChUaMobile = Environment.GetEnvironmentVariable("SEC_CH_UA_MOBILE");
         var secChUaPlatform = Environment.GetEnvironmentVariable("SEC_CH_UA_PLATFORM");
+        var idasMultifactorBrowserFingerprint = Environment.GetEnvironmentVariable("IDAS_MULTIFACTOR_BROWSER_FINGERPRINT");
+        var idasHappyVoyage = Environment.GetEnvironmentVariable("IDAS_HAPPY_VOYAGE");
+        var seedCookiesJson = Environment.GetEnvironmentVariable("WATCHDOG_SEED_COOKIES_JSON");
+        var seedCookiesBase64 = Environment.GetEnvironmentVariable("WATCHDOG_SEED_COOKIES_BASE64");
+
+        if (string.IsNullOrWhiteSpace(seedCookiesJson) && !string.IsNullOrWhiteSpace(seedCookiesBase64))
+        {
+            try
+            {
+                seedCookiesJson = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(seedCookiesBase64.Trim()));
+            }
+            catch
+            {
+                seedCookiesJson = null;
+            }
+        }
 
         var extraHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(acceptLanguage))
@@ -204,6 +220,15 @@ public static class WatchdogRunner
             EnableStealthScripts = stealthScripts,
             DiagnosticsDir = string.IsNullOrWhiteSpace(debugDir) ? null : debugDir.Trim(),
             ExtraHttpHeaders = extraHeaders.Count == 0 ? null : extraHeaders,
+            IdasMultifactorBrowserFingerprint = string.IsNullOrWhiteSpace(idasMultifactorBrowserFingerprint)
+                ? null
+                : idasMultifactorBrowserFingerprint.Trim(),
+            IdasHappyVoyage = string.IsNullOrWhiteSpace(idasHappyVoyage)
+                ? null
+                : idasHappyVoyage.Trim(),
+            SeedCookiesJson = string.IsNullOrWhiteSpace(seedCookiesJson)
+                ? null
+                : seedCookiesJson.Trim(),
         };
     }
 
